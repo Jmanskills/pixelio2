@@ -118,7 +118,7 @@ function handleCastSpell(room, playerId, spellKey, io) {
   room.projectiles.push(projectile);
 }
 
-function tickRoom(room, io) {
+async function tickRoom(room, io) {
   if (!room.started || room.winner) return;
 
   const now = Date.now();
@@ -222,10 +222,10 @@ function setupGameSockets(io) {
         waitingPlayer = null;
 
         // Start tick loop for this room
-        const interval = setInterval(() => {
+        const interval = setInterval(async () => {
           const r = rooms[room.roomId];
           if (!r || r.winner) { clearInterval(interval); return; }
-          tickRoom(r, io);
+          await tickRoom(r, io);
           io.to(room.roomId).emit('gameState', {
             players: r.players,
             projectiles: r.projectiles
@@ -245,6 +245,7 @@ function setupGameSockets(io) {
       }
     });
 
+    socket.on('playerInput', ({ dx, dz, rotY }) => {
       const room = rooms[socket.roomId];
       if (!room) return;
       handleMove(room, socket.id, { dx, dz, rotY });
@@ -290,10 +291,10 @@ function setupGameSockets(io) {
       fromSocket.emit('yourId', fromSocket.id);
       socket.emit('yourId', socket.id);
 
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         const r = rooms[room.roomId];
         if (!r || r.winner) { clearInterval(interval); return; }
-        tickRoom(r, io);
+        await tickRoom(r, io);
         io.to(room.roomId).emit('gameState', { players: r.players, projectiles: r.projectiles });
       }, 50);
       room.interval = interval;
