@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wizard Duel</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════ MENU SCREEN ══════════════════ -->
+  <div id="screen-menu" class="screen active">
+    <div class="menu-bg"></div>
+    <div class="menu-particles" id="particles"></div>
+    <div class="menu-content">
+      <div class="logo-wrap">
+        <div class="logo-stars">✦ ✦ ✦</div>
+        <h1 class="logo-title">WIZARD<br/><span>DUEL</span></h1>
+        <div class="logo-stars">✦ ✦ ✦</div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn-primary" id="btn-start-game">⚡ START GAME</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ AUTH SCREEN ══════════════════ -->
+  <div id="screen-auth" class="screen">
+    <div class="auth-bg"></div>
+    <div class="auth-box">
+      <div class="auth-logo">🧙 Wizard Duel</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+      </div>
+      <div id="auth-error" class="auth-error hidden"></div>
+      <input class="auth-input" id="auth-username" type="text" placeholder="Username" maxlength="20" autocomplete="off"/>
+      <input class="auth-input" id="auth-password" type="password" placeholder="Password (min 6 chars)" autocomplete="off"/>
+      <button class="btn-primary" id="btn-auth-submit">Enter the Arena</button>
+      <button class="btn-secondary" id="btn-back-menu">← Back</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ LOBBY SCREEN ══════════════════ -->
+  <div id="screen-lobby" class="screen">
+    <div class="lobby-box">
+      <div class="lobby-title">⚔️ Finding Opponent...</div>
+      <div class="lobby-spinner"></div>
+      <div class="lobby-msg" id="lobby-msg">Joining the queue...</div>
+      <div class="lobby-player">Playing as: <span id="lobby-username"></span></div>
+      <button class="btn-secondary" id="btn-leave-lobby">Leave Queue</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ GAME SCREEN ══════════════════ -->
+  <div id="screen-game" class="screen">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <!-- Player 1 (you) -->
+      <div class="hud-player hud-left">
+        <div class="hud-name" id="hud-name-you">You</div>
+        <div class="hud-hp-bar-wrap">
+          <div class="hud-hp-bar" id="hud-hp-you"></div>
+        </div>
+        <div class="hud-hp-text" id="hud-hp-text-you">100 HP</div>
+      </div>
+      <!-- VS -->
+      <div class="hud-vs">VS</div>
+      <!-- Player 2 (opponent) -->
+      <div class="hud-player hud-right">
+        <div class="hud-name" id="hud-name-opp">Opponent</div>
+        <div class="hud-hp-bar-wrap">
+          <div class="hud-hp-bar hud-hp-opp" id="hud-hp-opp"></div>
+        </div>
+        <div class="hud-hp-text" id="hud-hp-text-opp">100 HP</div>
+      </div>
+    </div>
+
+    <!-- Spell Bar -->
+    <div id="spell-bar">
+      <div class="spell-slot" id="spell-1" title="Fireball (Q)">
+        <div class="spell-icon">🔥</div>
+        <div class="spell-name">Fireball</div>
+        <div class="spell-key">Q</div>
+        <div class="spell-cooldown-overlay" id="cd-fireball"></div>
+      </div>
+      <div class="spell-slot" id="spell-2" title="Ice Shard (E)">
+        <div class="spell-icon">🧊</div>
+        <div class="spell-name">Ice Shard</div>
+        <div class="spell-key">E</div>
+        <div class="spell-cooldown-overlay" id="cd-iceshard"></div>
+      </div>
+      <div class="spell-slot" id="spell-3" title="Thunderbolt (R)">
+        <div class="spell-icon">⚡</div>
+        <div class="spell-name">Thunder</div>
+        <div class="spell-key">R</div>
+        <div class="spell-cooldown-overlay" id="cd-thunder"></div>
+      </div>
+      <div class="spell-slot" id="spell-4" title="Arcane Shield (F)">
+        <div class="spell-icon">🛡️</div>
+        <div class="spell-name">Shield</div>
+        <div class="spell-key">F</div>
+        <div class="spell-cooldown-overlay" id="cd-shield"></div>
+      </div>
+    </div>
+
+    <!-- Hit Flash -->
+    <div id="hit-flash"></div>
+
+    <!-- Stun Indicator -->
+    <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
+
+    <!-- Controls hint -->
+    <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim &nbsp;|&nbsp; Q/E/R/F: Spells</div>
+  </div>
+
+  <!-- ══════════════════ GAME OVER SCREEN ══════════════════ -->
+  <div id="screen-gameover" class="screen">
+    <div class="gameover-box">
+      <div class="gameover-icon" id="gameover-icon">🏆</div>
+      <div class="gameover-title" id="gameover-title">YOU WIN!</div>
+      <div class="gameover-sub" id="gameover-sub"></div>
+      <button class="btn-primary" id="btn-play-again">⚔️ Play Again</button>
+      <button class="btn-secondary" id="btn-gameover-menu">🏠 Main Menu</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>
