@@ -500,19 +500,15 @@ function connectSocket() {
   socket = io();
 
   socket.on('connect', () => {
-    // Register presence
-    socket.emit('joinQueue', {
+    // Register online presence only — NOT joining the queue
+    socket.emit('registerPresence', {
       username: profile.username,
-      token: authToken,
       cosmetics: {
         equippedRobe: profile.equippedRobe,
         equippedSpell: profile.equippedSpell,
         equippedTitle: profile.equippedTitle
       }
     });
-    // Immediately leave queue — we only wanted to register online presence
-    // The actual queue join happens when they click Play
-    socket.emit('leaveQueue');
   });
 
   socket.on('yourId', id => { myId = id; });
@@ -541,6 +537,14 @@ function connectSocket() {
   });
 
   socket.on('opponentDisconnected', () => endGame(true, profile.username, true, 50));
+
+  socket.on('matchDraw', ({ quitterName }) => {
+    endGame(null, null, false, 0, quitterName);
+  });
+
+  socket.on('reportReceived', ({ message }) => {
+    showReportConfirmation(message);
+  });
 
   // Online presence from server
   socket.on('onlineStatus', ({ username, online }) => {
@@ -959,22 +963,25 @@ function onResize() {
 }
 
 // ── Game over ────────────────────────────────────────
-function endGame(iWon, winnerName, disconnected, coinsEarned) {
+function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   gameRunning = false;
   removeInputListeners();
   cancelAnimationFrame(animFrameId);
+  hideReportModal();
 
-  document.getElementById('gameover-icon').textContent  = iWon ? '🏆' : '💀';
-  document.getElementById('gameover-title').textContent = iWon ? 'YOU WIN!' : 'DEFEATED!';
+  const isDraw = iWon === null;
 
-  let sub = disconnected ? 'Opponent disconnected — Victory!' : iWon ? `You defeated ${winnerName}!` : `${winnerName} wins this round.`;
+  document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
+  document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
+
+  let sub;
+  if (isDraw) sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
+  else if (disconnected) sub = 'Opponent disconnected — Victory!';
+  else if (iWon) sub = `You defeated ${winnerName}!`;
+  else sub = `${winnerName} wins this round.`;
+
   document.getElementById('gameover-sub').textContent = sub;
-
-  if (coinsEarned > 0) {
-    document.getElementById('gameover-coins').textContent = `+🪙 ${coinsEarned} coins earned!`;
-  } else {
-    document.getElementById('gameover-coins').textContent = '';
-  }
+  document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
   showScreen('screen-gameover');
 }
@@ -982,6 +989,44 @@ function endGame(iWon, winnerName, disconnected, coinsEarned) {
 // ══════════════════════════════════════════════════════
 //  API HELPER
 // ══════════════════════════════════════════════════════
+// ── Quit match ───────────────────────────────────────
+function quitMatch() {
+  if (!socket || !gameRunning) return;
+  if (!confirm('Are you sure you want to quit? The match will end as a draw.')) return;
+  socket.emit('quitMatch');
+}
+
+// ── Report player ────────────────────────────────────
+function showReportModal() {
+  document.getElementById('report-modal').classList.remove('hidden');
+  // Fill in opponent name
+  const oppName = document.getElementById('hud-name-opp').textContent;
+  document.getElementById('report-target-name').textContent = oppName;
+  document.getElementById('report-username-hidden').value = oppName;
+}
+
+function hideReportModal() {
+  const modal = document.getElementById('report-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function submitReport() {
+  const reason = document.getElementById('report-reason').value;
+  const details = document.getElementById('report-details').value.trim();
+  const reported = document.getElementById('report-username-hidden').value;
+  if (!reason) { alert('Please select a reason.'); return; }
+  socket.emit('reportPlayer', { reportedUsername: reported, reason, details });
+  hideReportModal();
+}
+
+function showReportConfirmation(message) {
+  const el = document.getElementById('report-confirmation');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
 async function apiFetch(url, method, body) {
   try {
     const opts = {
@@ -1017,6 +1062,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (socket) socket.emit('leaveQueue');
     enterMainMenu();
   });
+
+  // In-game buttons
+  document.getElementById('btn-quit-match').addEventListener('click', quitMatch);
+  document.getElementById('btn-report-player').addEventListener('click', showReportModal);
+  document.getElementById('btn-report-submit').addEventListener('click', submitReport);
+  document.getElementById('btn-report-cancel').addEventListener('click', hideReportModal);
 
   // Friends
   document.getElementById('btn-send-request').addEventListener('click', sendFriendRequest);

@@ -194,6 +194,14 @@ function setupGameSockets(io) {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
+    // Register online presence WITHOUT joining the queue (called on menu load)
+    socket.on('registerPresence', ({ username, cosmetics }) => {
+      socket.username = username;
+      socket.cosmetics = cosmetics || {};
+      onlineUsers[username] = socket.id;
+      io.emit('onlineStatus', { username, online: true });
+    });
+
     socket.on('joinQueue', async ({ username, token, cosmetics }) => {
       socket.username = username;
       socket.cosmetics = cosmetics || {};
@@ -202,6 +210,7 @@ function setupGameSockets(io) {
       onlineUsers[username] = socket.id;
       io.emit('onlineStatus', { username, online: true });
 
+      // Don't match with yourself
       if (waitingPlayer && waitingPlayer.id !== socket.id) {
         const room = createRoom(waitingPlayer, socket);
         const playerList = Object.values(room.players).map(p => ({
@@ -303,6 +312,24 @@ function setupGameSockets(io) {
     socket.on('declineInvite', ({ fromUsername }) => {
       const fromSocketId = onlineUsers[fromUsername];
       if (fromSocketId) io.to(fromSocketId).emit('inviteDeclined', { byUsername: socket.username });
+    });
+
+    // Quit match — draw, no coins lost, both sent back to menu
+    socket.on('quitMatch', () => {
+      const room = rooms[socket.roomId];
+      if (!room || room.winner) return;
+      clearInterval(room.interval);
+      room.winner = 'draw';
+      io.to(room.roomId).emit('matchDraw', { quitterName: socket.username });
+      delete rooms[socket.roomId];
+    });
+
+    // Report a player
+    socket.on('reportPlayer', ({ reportedUsername, reason, details }) => {
+      const safeDetails = (details || '').slice(0, 300);
+      console.log(`[REPORT] ${socket.username} reported ${reportedUsername} | Reason: ${reason} | Details: ${safeDetails}`);
+      // Acknowledge receipt to reporter
+      socket.emit('reportReceived', { message: 'Report submitted. Thank you.' });
     });
 
     socket.on('disconnect', () => {

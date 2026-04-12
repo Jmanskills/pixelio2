@@ -188,7 +188,43 @@
   <div id="hit-flash"></div>
   <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
   <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q/E/R/F: Spells</div>
+
+  <!-- In-game action buttons -->
+  <div id="game-action-btns">
+    <button class="game-btn game-btn-report" id="btn-report-player" title="Report opponent">🚩 Report</button>
+    <button class="game-btn game-btn-quit"   id="btn-quit-match"   title="Quit match">🚪 Quit</button>
+  </div>
+
+  <!-- Report confirmation toast -->
+  <div id="report-confirmation" class="hidden game-toast">✅ Report submitted.</div>
 </div>
+
+<!-- ══════════ REPORT MODAL ══════════ -->
+<div id="report-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🚩 Report Player</div>
+    <div class="modal-sub">Reporting: <strong id="report-target-name"></strong></div>
+    <input type="hidden" id="report-username-hidden"/>
+    <div class="modal-field">
+      <label class="modal-label">Reason</label>
+      <select class="modal-select" id="report-reason">
+        <option value="">— Select a reason —</option>
+        <option value="cheating">Cheating / Exploiting</option>
+        <option value="inappropriate_name">Inappropriate Username</option>
+        <option value="harassment">Harassment</option>
+        <option value="spam">Spam / Flooding</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Additional details (optional)</label>
+      <textarea class="modal-textarea" id="report-details" placeholder="Describe what happened..." maxlength="300"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-report-submit">Submit Report</button>
+      <button class="btn-secondary" id="btn-report-cancel">Cancel</button>
+    </div>
+  </div>
 
 <!-- ══════════ GAME OVER ══════════ -->
 <div id="screen-gameover" class="screen">

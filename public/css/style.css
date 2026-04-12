@@ -218,3 +218,166 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
   #hud{gap:10px;}
   .hud-hp-bar-wrap{width:120px;}
 }
+
+/* ══════════ IN-GAME ACTION BUTTONS ══════════ */
+#game-action-btns {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 25;
+}
+
+.game-btn {
+  font-family: 'Cinzel', serif;
+  font-size: .72rem;
+  letter-spacing: .5px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .2s;
+  backdrop-filter: blur(6px);
+}
+
+.game-btn-report {
+  background: rgba(180, 60, 20, 0.75);
+  color: #ffccaa;
+  border: 1px solid #cc4411;
+}
+.game-btn-report:hover { background: rgba(220, 70, 20, 0.95); color: #fff; }
+
+.game-btn-quit {
+  background: rgba(40, 30, 60, 0.75);
+  color: var(--gray);
+  border: 1px solid var(--border);
+}
+.game-btn-quit:hover { background: rgba(80, 20, 20, 0.9); color: #ff8888; border-color: #aa3333; }
+
+/* ══════════ GAME TOAST ══════════ */
+.game-toast {
+  position: absolute;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #16112a;
+  border: 1px solid var(--teal);
+  color: var(--teal);
+  font-family: 'Cinzel', serif;
+  font-size: .85rem;
+  padding: 10px 24px;
+  border-radius: 8px;
+  z-index: 40;
+  animation: fadeInDown .3s ease;
+  pointer-events: none;
+}
+
+/* ══════════ MODAL ══════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn .2s ease;
+}
+.modal-overlay.hidden { display: none !important; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-box {
+  background: #16112a;
+  border: 1px solid var(--purple-light);
+  border-radius: 14px;
+  padding: 36px 40px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 40px rgba(155,48,232,.15);
+  animation: fadeInDown .25s ease;
+}
+
+.modal-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.3rem;
+  color: var(--gold);
+  text-shadow: 0 0 16px var(--gold);
+}
+
+.modal-sub {
+  font-size: .9rem;
+  color: var(--gray);
+}
+.modal-sub strong { color: var(--white); }
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-label {
+  font-family: 'Cinzel', serif;
+  font-size: .72rem;
+  letter-spacing: 1px;
+  color: var(--gray);
+  text-transform: uppercase;
+}
+
+.modal-select {
+  width: 100%;
+  padding: 11px 14px;
+  background: #0e0a1e;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--white);
+  font-family: 'Raleway', sans-serif;
+  font-size: .95rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238880aa' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+.modal-select:focus { border-color: var(--purple-light); }
+.modal-select option { background: #16112a; }
+
+.modal-textarea {
+  width: 100%;
+  padding: 11px 14px;
+  background: #0e0a1e;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--white);
+  font-family: 'Raleway', sans-serif;
+  font-size: .9rem;
+  outline: none;
+  resize: vertical;
+  min-height: 90px;
+  max-height: 160px;
+  transition: border-color .2s;
+}
+.modal-textarea:focus { border-color: var(--purple-light); }
+.modal-textarea::placeholder { color: #5a5080; }
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.modal-actions .btn-primary { padding: 12px 28px; font-size: .85rem; }
+.modal-actions .btn-secondary { padding: 12px 20px; }
+
+@media (max-width: 600px) {
+  .modal-box { padding: 24px 18px; margin: 0 12px; }
+  #game-action-btns { top: auto; bottom: 108px; right: 8px; flex-direction: column; }
+  .game-btn { font-size: .65rem; padding: 7px 10px; }
+}
