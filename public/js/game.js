@@ -500,8 +500,9 @@ function updateGameState(state) {
 }
 
 function updateCamera(px, pz, rotY) {
-  const camX = px - Math.sin(rotY) * CAMERA_DIST;
-  const camZ = pz - Math.cos(rotY) * CAMERA_DIST;
+  // Place camera BEHIND the player: positive offset along their facing direction
+  const camX = px + Math.sin(rotY) * CAMERA_DIST;
+  const camZ = pz + Math.cos(rotY) * CAMERA_DIST;
   camera.position.set(camX, CAMERA_HEIGHT, camZ);
   camera.lookAt(px, 1.5, pz);
 }
@@ -627,10 +628,10 @@ function sendInput() {
   if (keys['KeyA'] || keys['ArrowLeft'])  dx -= 1;
   if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
 
-  // Rotate movement relative to camera facing
+  // Rotate movement relative to player facing direction
   const angle = mouseX;
-  const rdx = dx * Math.cos(angle) - dz * Math.sin(angle);
-  const rdz = dx * Math.sin(angle) + dz * Math.cos(angle);
+  const rdx =  dx * Math.cos(angle) + dz * Math.sin(angle);
+  const rdz = -dx * Math.sin(angle) + dz * Math.cos(angle);
 
   socket.emit('playerInput', { dx: rdx, dz: rdz, rotY: mouseX });
 }
