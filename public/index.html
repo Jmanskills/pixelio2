@@ -187,9 +187,25 @@
   </div>
   <div id="hit-flash"></div>
   <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
-  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q/E/R/F: Spells</div>
+  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q/E/R/F: Spells &nbsp;|&nbsp; Tab: Emotes</div>
 
-  <!-- In-game action buttons -->
+  <!-- Emote button & wheel -->
+  <div id="emote-btn-wrap">
+    <button id="btn-emote-toggle" class="game-btn game-btn-emote" title="Emotes (Tab)">😄 Emotes</button>
+  </div>
+  <div id="emote-wheel" class="hidden">
+    <div class="emote-wheel-title">Choose Emote</div>
+    <div class="emote-grid">
+      <button class="emote-item" data-emote="wave"  onclick="sendEmote('wave')">👋<span>Wave</span></button>
+      <button class="emote-item" data-emote="laugh" onclick="sendEmote('laugh')">😂<span>Laugh</span></button>
+      <button class="emote-item" data-emote="gg"    onclick="sendEmote('gg')">🤝<span>GG</span></button>
+      <button class="emote-item" data-emote="flex"  onclick="sendEmote('flex')">💪<span>Flex</span></button>
+      <button class="emote-item" data-emote="angry" onclick="sendEmote('angry')">😤<span>Angry</span></button>
+      <button class="emote-item" data-emote="dance" onclick="sendEmote('dance')">🕺<span>Dance</span></button>
+      <button class="emote-item" data-emote="think" onclick="sendEmote('think')">🤔<span>Think</span></button>
+      <button class="emote-item" data-emote="fire"  onclick="sendEmote('fire')">🔥<span>Hype</span></button>
+    </div>
+  </div>
   <div id="game-action-btns">
     <button class="game-btn game-btn-report" id="btn-report-player" title="Report opponent">🚩 Report</button>
     <button class="game-btn game-btn-quit"   id="btn-quit-match"   title="Quit match">🚪 Quit</button>

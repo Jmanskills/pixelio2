@@ -24,7 +24,10 @@ const SPELL_COLORS = {
 
 // ── Screen helpers ───────────────────────────────────
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = '';
+  });
   document.getElementById(id).classList.add('active');
 }
 
@@ -546,6 +549,14 @@ function connectSocket() {
     showReportConfirmation(message);
   });
 
+  socket.on('opponentEmote', ({ emoteKey, fromId }) => {
+    playEmote(emoteKey, fromId);
+  });
+
+  socket.on('myEmote', ({ emoteKey, fromId }) => {
+    playEmote(emoteKey, fromId);
+  });
+
   // Online presence from server
   socket.on('onlineStatus', ({ username, online }) => {
     if (online) onlineFriends.add(username);
@@ -923,6 +934,8 @@ function onMouseMove(e) { if (pointerLocked) mouseX += e.movementX * 0.003; }
 
 function onKeyDown(e) {
   keys[e.code] = true;
+  if (e.code === 'Tab') { e.preventDefault(); if (gameRunning) toggleEmoteWheel(); return; }
+  if (e.code === 'Escape') { hideEmoteWheel(); return; }
   const spell = SPELL_KEYS[e.code];
   if (spell && gameRunning) {
     const now = Date.now();
@@ -950,10 +963,22 @@ function sendInput() {
 }
 
 function renderLoop() {
-  if (!gameRunning) return;
   animFrameId = requestAnimationFrame(renderLoop);
+  // Animate emotes
+  tickEmotes();
   renderer.render(scene, camera);
+  // Stop loop only after gameover screen is fully shown and stable
+  if (!gameRunning && gameOverFrames !== null) {
+    gameOverFrames--;
+    if (gameOverFrames <= 0) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+      gameOverFrames = null;
+    }
+  }
 }
+
+let gameOverFrames = null;
 
 function onResize() {
   if (!renderer) return;
@@ -966,8 +991,11 @@ function onResize() {
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   gameRunning = false;
   removeInputListeners();
-  cancelAnimationFrame(animFrameId);
   hideReportModal();
+  hideEmoteWheel();
+
+  // Keep rendering 120 more frames so the 3D scene stays visible under the overlay
+  gameOverFrames = 120;
 
   const isDraw = iWon === null;
 
@@ -983,7 +1011,9 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   document.getElementById('gameover-sub').textContent = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  showScreen('screen-gameover');
+  // Show gameover screen ON TOP of game screen (don't hide game screen)
+  document.getElementById('screen-gameover').style.display = 'flex';
+  document.getElementById('screen-gameover').classList.add('active');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1027,6 +1057,238 @@ function showReportConfirmation(message) {
   setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
+// ═══════════════════════════════════════════════════
+//  EMOTE SYSTEM
+// ═══════════════════════════════════════════════════
+const EMOTE_DEFS = {
+  wave:  { emoji: '👋', label: 'Wave',   color: 0x44ddff, particles: 'sparkle', bounce: 'wave'  },
+  laugh: { emoji: '😂', label: 'Laugh',  color: 0xffee44, particles: 'burst',   bounce: 'shake' },
+  gg:    { emoji: '🤝', label: 'GG',     color: 0x44ff88, particles: 'hearts',  bounce: 'nod'   },
+  flex:  { emoji: '💪', label: 'Flex',   color: 0xff8844, particles: 'burst',   bounce: 'flex'  },
+  angry: { emoji: '😤', label: 'Angry',  color: 0xff3333, particles: 'smoke',   bounce: 'shake' },
+  dance: { emoji: '🕺', label: 'Dance',  color: 0xcc44ff, particles: 'music',   bounce: 'dance' },
+  think: { emoji: '🤔', label: 'Think',  color: 0xaaaaff, particles: 'dots',    bounce: 'nod'   },
+  fire:  { emoji: '🔥', label: 'Hype',   color: 0xff6600, particles: 'fire',    bounce: 'dance' },
+};
+
+// Active 3D emote particles
+const activeEmoteParticles = [];
+// Active canvas overlays (floating emoji)
+const activeFloatingEmojis = [];
+// Wizard bounce animations
+const wizardAnims = {}; // playerId -> { type, startTime, duration }
+
+let emoteWheelVisible = false;
+
+function toggleEmoteWheel() {
+  emoteWheelVisible = !emoteWheelVisible;
+  document.getElementById('emote-wheel').classList.toggle('hidden', !emoteWheelVisible);
+}
+
+function hideEmoteWheel() {
+  emoteWheelVisible = false;
+  const el = document.getElementById('emote-wheel');
+  if (el) el.classList.add('hidden');
+}
+
+function sendEmote(emoteKey) {
+  if (!socket || !gameRunning) return;
+  hideEmoteWheel();
+  socket.emit('emote', { emoteKey });
+}
+
+function playEmote(emoteKey, fromId) {
+  const def = EMOTE_DEFS[emoteKey];
+  if (!def) return;
+  const mesh = playerMeshes[fromId];
+  if (!mesh) return;
+
+  // 1. Start wizard bounce animation
+  wizardAnims[fromId] = { type: def.bounce, startTime: Date.now(), duration: 1800 };
+
+  // 2. Spawn 3D particles above wizard
+  spawnEmoteParticles(mesh.position, def);
+
+  // 3. Show floating emoji in screen space
+  showFloatingEmoji(def.emoji, mesh.position);
+}
+
+// ── 3D Particle burst ────────────────────────────────
+function spawnEmoteParticles(worldPos, def) {
+  const count = def.particles === 'burst' ? 14 : def.particles === 'hearts' ? 8 : def.particles === 'music' ? 6 : 10;
+
+  for (let i = 0; i < count; i++) {
+    const size = 0.08 + Math.random() * 0.12;
+    let geo, color;
+
+    if (def.particles === 'hearts') {
+      geo = new THREE.SphereGeometry(size, 6, 6);
+      color = 0xff4488;
+    } else if (def.particles === 'fire') {
+      geo = new THREE.SphereGeometry(size * 1.4, 6, 6);
+      color = [0xff6600, 0xff3300, 0xffaa00][i % 3];
+    } else if (def.particles === 'music') {
+      geo = new THREE.BoxGeometry(size, size * 2, size);
+      color = def.color;
+    } else if (def.particles === 'smoke') {
+      geo = new THREE.SphereGeometry(size * 1.5, 5, 5);
+      color = 0x888888;
+    } else {
+      geo = new THREE.OctahedronGeometry(size);
+      color = def.color;
+    }
+
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    // Start just above wizard head
+    mesh.position.set(
+      worldPos.x + (Math.random() - 0.5) * 0.8,
+      worldPos.y + 2.4 + Math.random() * 0.4,
+      worldPos.z + (Math.random() - 0.5) * 0.8
+    );
+
+    const angle = (i / count) * Math.PI * 2;
+    const speed = 0.025 + Math.random() * 0.03;
+    mesh.userData = {
+      vx: Math.cos(angle) * speed,
+      vy: 0.04 + Math.random() * 0.04,
+      vz: Math.sin(angle) * speed,
+      life: 1.0,
+      decay: 0.018 + Math.random() * 0.012,
+      spin: (Math.random() - 0.5) * 0.15
+    };
+
+    scene.add(mesh);
+    activeEmoteParticles.push(mesh);
+  }
+
+  // Point light flash
+  const flash = new THREE.PointLight(def.color, 3, 8);
+  flash.position.set(worldPos.x, worldPos.y + 2.5, worldPos.z);
+  scene.add(flash);
+  let flashLife = 1.0;
+  const fadeFlash = () => {
+    flashLife -= 0.05;
+    flash.intensity = flashLife * 3;
+    if (flashLife > 0) requestAnimationFrame(fadeFlash);
+    else scene.remove(flash);
+  };
+  requestAnimationFrame(fadeFlash);
+}
+
+// ── Floating emoji overlay ────────────────────────────
+function showFloatingEmoji(emoji, worldPos) {
+  const canvas = document.getElementById('game-canvas');
+  const div = document.createElement('div');
+  div.className = 'floating-emoji';
+  div.textContent = emoji;
+  div.style.position = 'fixed';
+  div.style.pointerEvents = 'none';
+  div.style.zIndex = '50';
+  div.style.fontSize = '2.4rem';
+  div.style.filter = 'drop-shadow(0 0 8px rgba(255,255,255,0.8))';
+  div.style.transition = 'none';
+  document.body.appendChild(div);
+
+  const startTime = Date.now();
+  const duration  = 2000;
+  // Store world position to project each frame
+  div._worldPos = { x: worldPos.x, y: worldPos.y + 3.2, z: worldPos.z };
+
+  const animate = () => {
+    const elapsed = Date.now() - startTime;
+    const t = elapsed / duration;
+    if (t >= 1) { div.remove(); return; }
+
+    // Project world pos to screen
+    const vec = new THREE.Vector3(div._worldPos.x, div._worldPos.y + t * 1.5, div._worldPos.z);
+    vec.project(camera);
+    const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+
+    div.style.left = (x - 20) + 'px';
+    div.style.top  = (y - 20) + 'px';
+    div.style.opacity = t < 0.2 ? t / 0.2 : t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
+    div.style.transform = `scale(${1 + Math.sin(t * Math.PI) * 0.4})`;
+    requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+}
+
+// ── Tick emotes each frame ───────────────────────────
+function tickEmotes() {
+  // Update particles
+  for (let i = activeEmoteParticles.length - 1; i >= 0; i--) {
+    const p = activeEmoteParticles[i];
+    const d = p.userData;
+    p.position.x += d.vx;
+    p.position.y += d.vy;
+    p.position.z += d.vz;
+    d.vy -= 0.002; // gravity
+    d.vx *= 0.97;
+    d.vz *= 0.97;
+    p.rotation.x += d.spin;
+    p.rotation.z += d.spin * 0.7;
+    d.life -= d.decay;
+    p.material.opacity = Math.max(0, d.life);
+    if (d.life <= 0) {
+      scene.remove(p);
+      activeEmoteParticles.splice(i, 1);
+    }
+  }
+
+  // Update wizard bounce animations
+  const now = Date.now();
+  for (const [playerId, anim] of Object.entries(wizardAnims)) {
+    const mesh = playerMeshes[playerId];
+    if (!mesh) { delete wizardAnims[playerId]; continue; }
+    const t = (now - anim.startTime) / anim.duration;
+    if (t >= 1) { mesh.position.y = 0; delete wizardAnims[playerId]; continue; }
+
+    const phase = t * Math.PI * 2;
+    switch (anim.type) {
+      case 'wave':
+        mesh.rotation.z = Math.sin(phase * 2) * 0.25;
+        mesh.position.y = Math.abs(Math.sin(phase)) * 0.3;
+        break;
+      case 'shake':
+        mesh.position.x += Math.sin(phase * 8) * 0.04;
+        mesh.rotation.z = Math.sin(phase * 8) * 0.15;
+        break;
+      case 'nod':
+        mesh.rotation.x = Math.sin(phase * 3) * 0.2;
+        mesh.position.y = Math.abs(Math.sin(phase * 1.5)) * 0.15;
+        break;
+      case 'flex':
+        mesh.position.y = Math.abs(Math.sin(phase * 2)) * 0.5;
+        mesh.rotation.z = Math.sin(phase) * 0.3;
+        mesh.scale.set(1 + Math.abs(Math.sin(phase)) * 0.15, 1 + Math.abs(Math.sin(phase)) * 0.1, 1);
+        break;
+      case 'dance':
+        mesh.position.y = Math.abs(Math.sin(phase * 3)) * 0.4;
+        mesh.rotation.y += 0.08;
+        mesh.position.x += Math.sin(phase * 4) * 0.05;
+        break;
+    }
+  }
+
+  // Clean scale after flex
+  for (const [playerId] of Object.entries(playerMeshes)) {
+    if (!wizardAnims[playerId]) {
+      playerMeshes[playerId].scale.set(1, 1, 1);
+      playerMeshes[playerId].rotation.x = 0;
+      playerMeshes[playerId].rotation.z = 0;
+    }
+  }
+}
+
+function clearEmotes() {
+  activeEmoteParticles.forEach(p => scene && scene.remove(p));
+  activeEmoteParticles.length = 0;
+  for (const key in wizardAnims) delete wizardAnims[key];
+}
+
 async function apiFetch(url, method, body) {
   try {
     const opts = {
@@ -1068,6 +1330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-report-player').addEventListener('click', showReportModal);
   document.getElementById('btn-report-submit').addEventListener('click', submitReport);
   document.getElementById('btn-report-cancel').addEventListener('click', hideReportModal);
+  document.getElementById('btn-emote-toggle').addEventListener('click', toggleEmoteWheel);
 
   // Friends
   document.getElementById('btn-send-request').addEventListener('click', sendFriendRequest);
@@ -1090,19 +1353,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Game over buttons
   document.getElementById('btn-play-again').addEventListener('click', () => {
+    document.getElementById('screen-gameover').classList.remove('active');
+    document.getElementById('screen-gameover').style.display = '';
+    document.getElementById('screen-game').classList.remove('active');
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    gameOverFrames = null;
     if (renderer) {
       Object.values(playerMeshes).forEach(m => scene.remove(m));
       Object.values(projMeshes).forEach(m => scene.remove(m));
       playerMeshes = {}; projMeshes = {};
     }
+    clearEmotes();
     joinQueue();
   });
   document.getElementById('btn-gameover-menu').addEventListener('click', () => {
+    document.getElementById('screen-gameover').classList.remove('active');
+    document.getElementById('screen-gameover').style.display = '';
+    document.getElementById('screen-game').classList.remove('active');
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    gameOverFrames = null;
     if (renderer) {
       Object.values(playerMeshes).forEach(m => scene.remove(m));
       Object.values(projMeshes).forEach(m => scene.remove(m));
       playerMeshes = {}; projMeshes = {};
     }
+    clearEmotes();
     enterMainMenu();
   });
 

@@ -309,6 +309,18 @@ function setupGameSockets(io) {
       room.interval = interval;
     });
 
+    // Emotes — relay to opponent
+    socket.on('emote', ({ emoteKey }) => {
+      const room = rooms[socket.roomId];
+      if (!room) return;
+      const opponentId = getOpponentId(room, socket.id);
+      if (opponentId) {
+        io.to(opponentId).emit('opponentEmote', { emoteKey, fromId: socket.id });
+      }
+      // Echo back to sender too so they see their own emote
+      socket.emit('myEmote', { emoteKey, fromId: socket.id });
+    });
+
     socket.on('declineInvite', ({ fromUsername }) => {
       const fromSocketId = onlineUsers[fromUsername];
       if (fromSocketId) io.to(fromSocketId).emit('inviteDeclined', { byUsername: socket.username });
