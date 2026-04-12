@@ -296,6 +296,8 @@ function renderShop() {
       (item.category === 'robe'  && profile.equippedRobe  === item.id) ||
       (item.category === 'spell' && profile.equippedSpell === item.id) ||
       (item.category === 'title' && profile.equippedTitle === item.id);
+    // Emotes are "equipped" if owned (they're always usable once owned)
+    const isEmoteOwned = item.category === 'emote' && owned;
 
     const card = document.createElement('div');
     card.className = 'shop-item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
@@ -309,6 +311,10 @@ function renderShop() {
     } else if (item.category === 'spell') {
       preview.style.background = item.color ? hexToCSS(item.color) : '#9b30e8';
       preview.textContent = '✨';
+    } else if (item.category === 'emote') {
+      preview.style.background = '#1a1030';
+      preview.style.fontSize = '1.8rem';
+      preview.textContent = item.preview || '😄';
     } else {
       preview.style.background = item.preview || '#f0c040';
       preview.textContent = '🏷️';
@@ -338,7 +344,21 @@ function renderShop() {
     // Action button
     const btn = document.createElement('button');
     btn.className = 'shop-item-btn';
-    if (equipped) {
+    if (item.category === 'emote') {
+      if (owned) {
+        btn.textContent = '✓ Unlocked';
+        btn.className += ' equipped-btn';
+        btn.disabled = true;
+      } else if (item.price === 0) {
+        btn.textContent = 'Free — Unlock';
+        btn.className += ' equip';
+        btn.onclick = () => buyAndEquip(item.id, 0);
+      } else {
+        btn.textContent = '🪙 ' + item.price;
+        if (profile.coins < item.price) btn.disabled = true;
+        btn.onclick = () => buyAndEquip(item.id, item.price);
+      }
+    } else if (equipped) {
       btn.textContent = '✓ Equipped';
       btn.className += ' equipped-btn';
       btn.disabled = true;
@@ -369,6 +389,18 @@ async function buyAndEquip(itemId, price) {
     const res = await apiFetch('/api/shop/buy', 'POST', { itemId });
     if (!res) return;
     profile = res.profile;
+  }
+  // Emotes don't need equipping — just buying unlocks them
+  const item = shopCatalog.find(i => i.id === itemId);
+  if (item && item.category === 'emote') {
+    // Free emote: add to inventory locally if price was 0 and server skipped buy
+    if (price === 0 && !profile.inventory.includes(itemId)) {
+      const res = await apiFetch('/api/shop/buy', 'POST', { itemId });
+      if (res) profile = res.profile;
+    }
+    updateMenuUI();
+    renderShop();
+    return;
   }
   await equipItem(itemId);
 }
@@ -963,11 +995,10 @@ function sendInput() {
 }
 
 function renderLoop() {
+  if (!gameRunning && !gameOverFrames) return;
   animFrameId = requestAnimationFrame(renderLoop);
-  // Animate emotes
   tickEmotes();
   renderer.render(scene, camera);
-  // Stop loop only after gameover screen is fully shown and stable
   if (!gameRunning && gameOverFrames !== null) {
     gameOverFrames--;
     if (gameOverFrames <= 0) {
@@ -989,13 +1020,17 @@ function onResize() {
 
 // ── Game over ────────────────────────────────────────
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
+  // Guard: don't trigger twice
+  if (!gameRunning && document.getElementById('screen-gameover').classList.contains('active')) return;
+
   gameRunning = false;
   removeInputListeners();
   hideReportModal();
   hideEmoteWheel();
 
-  // Keep rendering 120 more frames so the 3D scene stays visible under the overlay
-  gameOverFrames = 120;
+  // Cancel any existing render loop cleanly
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  gameOverFrames = null;
 
   const isDraw = iWon === null;
 
@@ -1011,9 +1046,11 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   document.getElementById('gameover-sub').textContent = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Show gameover screen ON TOP of game screen (don't hide game screen)
-  document.getElementById('screen-gameover').style.display = 'flex';
-  document.getElementById('screen-gameover').classList.add('active');
+  // Hide game screen, show gameover screen cleanly
+  document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
+  const go = document.getElementById('screen-gameover');
+  go.style.display = 'flex';
+  go.classList.add('active');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1082,7 +1119,31 @@ let emoteWheelVisible = false;
 
 function toggleEmoteWheel() {
   emoteWheelVisible = !emoteWheelVisible;
-  document.getElementById('emote-wheel').classList.toggle('hidden', !emoteWheelVisible);
+  const wheel = document.getElementById('emote-wheel');
+  wheel.classList.toggle('hidden', !emoteWheelVisible);
+  if (emoteWheelVisible) buildEmoteGrid();
+}
+
+function buildEmoteGrid() {
+  const grid = document.getElementById('emote-grid');
+  grid.innerHTML = '';
+  Object.entries(EMOTE_DEFS).forEach(([key, def]) => {
+    const owned = profile && profile.inventory.includes('emote_' + key);
+    const btn = document.createElement('button');
+    btn.className = 'emote-item' + (owned ? '' : ' emote-locked');
+    btn.title = owned ? def.label : def.label + ' (Not owned — buy in Shop)';
+    if (owned) btn.onclick = () => sendEmote(key);
+
+    const icon = document.createElement('div');
+    icon.textContent = def.emoji;
+
+    const label = document.createElement('span');
+    label.textContent = owned ? def.label : '🔒';
+
+    btn.appendChild(icon);
+    btn.appendChild(label);
+    grid.appendChild(btn);
+  });
 }
 
 function hideEmoteWheel() {
@@ -1093,6 +1154,12 @@ function hideEmoteWheel() {
 
 function sendEmote(emoteKey) {
   if (!socket || !gameRunning) return;
+  const itemId = 'emote_' + emoteKey;
+  if (!profile.inventory.includes(itemId)) {
+    showReportConfirmation('You don\'t own that emote! Buy it in the Shop.');
+    hideEmoteWheel();
+    return;
+  }
   hideEmoteWheel();
   socket.emit('emote', { emoteKey });
 }

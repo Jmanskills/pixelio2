@@ -31,3 +31,21 @@ const SHOP_ITEMS = [
 ];
 
 module.exports = SHOP_ITEMS;
+
+
+// ── EMOTES ─────────────────────────────────────────────
+// Note: wave and gg are free starter emotes
+// id must match EMOTE_DEFS keys on the client
+const EMOTE_ITEMS = [
+  { id: 'emote_wave',  name: 'Wave',   category: 'emote', price: 0,   preview: '👋', description: 'A friendly greeting.' },
+  { id: 'emote_gg',    name: 'GG',     category: 'emote', price: 0,   preview: '🤝', description: 'Good game, respect.' },
+  { id: 'emote_laugh', name: 'Laugh',  category: 'emote', price: 100, preview: '😂', description: 'Can\'t stop laughing.' },
+  { id: 'emote_flex',  name: 'Flex',   category: 'emote', price: 150, preview: '💪', description: 'Show off your power.' },
+  { id: 'emote_angry', name: 'Angry',  category: 'emote', price: 100, preview: '😤', description: 'Express your rage.' },
+  { id: 'emote_dance', name: 'Dance',  category: 'emote', price: 200, preview: '🕺', description: 'Victory dance!' },
+  { id: 'emote_think', name: 'Think',  category: 'emote', price: 100, preview: '🤔', description: 'Hmm, interesting...' },
+  { id: 'emote_fire',  name: 'Hype',   category: 'emote', price: 200, preview: '🔥', description: 'Pure hype energy.' },
+];
+
+// Merge into main export
+SHOP_ITEMS.push(...EMOTE_ITEMS);

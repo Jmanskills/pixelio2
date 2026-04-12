@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
   coins:  { type: Number, default: 100 },
 
   // Owned item IDs
-  inventory: { type: [String], default: ['robe_default', 'spell_default', 'title_wizard'] },
+  inventory: { type: [String], default: ['robe_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'] },
 
   // Equipped
   equippedRobe:  { type: String, default: 'robe_default' },

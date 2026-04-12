@@ -130,6 +130,7 @@
           <button class="shop-tab active" onclick="shopTab('robe')">🧥 Robes</button>
           <button class="shop-tab" onclick="shopTab('spell')">✨ Spell FX</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
+          <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
         <div class="shop-balance">🪙 <span id="shop-coins">0</span></div>
       </div>
@@ -195,16 +196,7 @@
   </div>
   <div id="emote-wheel" class="hidden">
     <div class="emote-wheel-title">Choose Emote</div>
-    <div class="emote-grid">
-      <button class="emote-item" data-emote="wave"  onclick="sendEmote('wave')">👋<span>Wave</span></button>
-      <button class="emote-item" data-emote="laugh" onclick="sendEmote('laugh')">😂<span>Laugh</span></button>
-      <button class="emote-item" data-emote="gg"    onclick="sendEmote('gg')">🤝<span>GG</span></button>
-      <button class="emote-item" data-emote="flex"  onclick="sendEmote('flex')">💪<span>Flex</span></button>
-      <button class="emote-item" data-emote="angry" onclick="sendEmote('angry')">😤<span>Angry</span></button>
-      <button class="emote-item" data-emote="dance" onclick="sendEmote('dance')">🕺<span>Dance</span></button>
-      <button class="emote-item" data-emote="think" onclick="sendEmote('think')">🤔<span>Think</span></button>
-      <button class="emote-item" data-emote="fire"  onclick="sendEmote('fire')">🔥<span>Hype</span></button>
-    </div>
+    <div class="emote-grid" id="emote-grid"></div>
   </div>
   <div id="game-action-btns">
     <button class="game-btn game-btn-report" id="btn-report-player" title="Report opponent">🚩 Report</button>
