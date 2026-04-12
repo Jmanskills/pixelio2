@@ -1,3 +1,5 @@
+const User = require('./models/User');
+
 // Game constants
 const ARENA_SIZE = 40;
 const PLAYER_SPEED = 0.15;
@@ -16,12 +18,11 @@ const rooms = {}; // roomId -> room state
 
 function createRoom(socket1, socket2) {
   const roomId = `room_${Date.now()}`;
-
   const state = {
     roomId,
     players: {
-      [socket1.id]: createPlayerState(socket1.id, socket1.username, -8, 0),
-      [socket2.id]: createPlayerState(socket2.id, socket2.username,  8, 0)
+      [socket1.id]: createPlayerState(socket1.id, socket1.username, -8, 0, socket1.cosmetics || {}),
+      [socket2.id]: createPlayerState(socket2.id, socket2.username,  8, 0, socket2.cosmetics || {})
     },
     projectiles: [],
     tick: 0,
@@ -38,7 +39,7 @@ function createRoom(socket1, socket2) {
   return state;
 }
 
-function createPlayerState(id, username, x, z) {
+function createPlayerState(id, username, x, z, cosmetics = {}) {
   return {
     id, username,
     x, y: 0, z,
@@ -47,7 +48,10 @@ function createPlayerState(id, username, x, z) {
     shielded: false,
     stunned: false,
     spellCooldowns: { fireball: 0, iceshard: 0, thunder: 0, shield: 0 },
-    alive: true
+    alive: true,
+    equippedRobe:  cosmetics.equippedRobe  || 'robe_default',
+    equippedSpell: cosmetics.equippedSpell || 'spell_default',
+    equippedTitle: cosmetics.equippedTitle || 'title_wizard'
   };
 }
 
@@ -163,9 +167,15 @@ function tickRoom(room, io) {
         if (opp.hp <= 0) {
           opp.alive = false;
           room.winner = proj.ownerId;
+          // Award coins: 50 for win, 10 for loss
+          try {
+            await User.findOneAndUpdate({ username: room.players[proj.ownerId].username }, { $inc: { wins: 1, coins: 50 } });
+            await User.findOneAndUpdate({ username: opp.username }, { $inc: { losses: 1, coins: 10 } });
+          } catch(e) { console.error('Coin award error:', e); }
           io.to(room.roomId).emit('gameOver', {
             winnerId: proj.ownerId,
-            winnerName: room.players[proj.ownerId].username
+            winnerName: room.players[proj.ownerId].username,
+            coinsEarned: { [proj.ownerId]: 50, [opponentId]: 10 }
           });
         }
       } else {
@@ -177,17 +187,26 @@ function tickRoom(room, io) {
   room.projectiles = room.projectiles.filter(p => !toRemove.includes(p.id));
 }
 
+// Online presence tracking
+const onlineUsers = {}; // username -> socketId
+
 function setupGameSockets(io) {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    socket.on('joinQueue', ({ username, token }) => {
+    socket.on('joinQueue', async ({ username, token, cosmetics }) => {
       socket.username = username;
+      socket.cosmetics = cosmetics || {};
+
+      // Track online users for friend system
+      onlineUsers[username] = socket.id;
+      io.emit('onlineStatus', { username, online: true });
 
       if (waitingPlayer && waitingPlayer.id !== socket.id) {
         const room = createRoom(waitingPlayer, socket);
         const playerList = Object.values(room.players).map(p => ({
-          id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp
+          id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
+          equippedRobe: p.equippedRobe, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
         }));
 
         io.to(room.roomId).emit('matchFound', {
@@ -220,7 +239,12 @@ function setupGameSockets(io) {
       }
     });
 
-    socket.on('playerInput', ({ dx, dz, rotY }) => {
+    socket.on('leaveQueue', () => {
+      if (waitingPlayer && waitingPlayer.id === socket.id) {
+        waitingPlayer = null;
+      }
+    });
+
       const room = rooms[socket.roomId];
       if (!room) return;
       handleMove(room, socket.id, { dx, dz, rotY });
@@ -232,8 +256,60 @@ function setupGameSockets(io) {
       handleCastSpell(room, socket.id, spellKey, io);
     });
 
+    // Friend invite: send invite to online friend
+    socket.on('sendInvite', ({ toUsername }) => {
+      const targetSocketId = onlineUsers[toUsername];
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('friendInvite', { fromUsername: socket.username });
+      } else {
+        socket.emit('inviteError', { message: `${toUsername} is not online.` });
+      }
+    });
+
+    // Accept invite: put both in queue together
+    socket.on('acceptInvite', ({ fromUsername }) => {
+      const fromSocketId = onlineUsers[fromUsername];
+      if (!fromSocketId) {
+        socket.emit('inviteError', { message: `${fromUsername} is no longer online.` });
+        return;
+      }
+      const fromSocket = io.sockets.sockets.get(fromSocketId);
+      if (!fromSocket) return;
+
+      // Cancel any existing queue spot
+      if (waitingPlayer && (waitingPlayer.id === socket.id || waitingPlayer.id === fromSocket.id)) {
+        waitingPlayer = null;
+      }
+
+      const room = createRoom(fromSocket, socket);
+      const playerList = Object.values(room.players).map(p => ({
+        id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
+        equippedRobe: p.equippedRobe, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
+      }));
+      io.to(room.roomId).emit('matchFound', { roomId: room.roomId, players: playerList });
+      fromSocket.emit('yourId', fromSocket.id);
+      socket.emit('yourId', socket.id);
+
+      const interval = setInterval(() => {
+        const r = rooms[room.roomId];
+        if (!r || r.winner) { clearInterval(interval); return; }
+        tickRoom(r, io);
+        io.to(room.roomId).emit('gameState', { players: r.players, projectiles: r.projectiles });
+      }, 50);
+      room.interval = interval;
+    });
+
+    socket.on('declineInvite', ({ fromUsername }) => {
+      const fromSocketId = onlineUsers[fromUsername];
+      if (fromSocketId) io.to(fromSocketId).emit('inviteDeclined', { byUsername: socket.username });
+    });
+
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);
+      if (socket.username) {
+        delete onlineUsers[socket.username];
+        io.emit('onlineStatus', { username: socket.username, online: false });
+      }
       if (waitingPlayer && waitingPlayer.id === socket.id) {
         waitingPlayer = null;
       }
@@ -241,9 +317,7 @@ function setupGameSockets(io) {
       if (room && !room.winner) {
         clearInterval(room.interval);
         const opponentId = getOpponentId(room, socket.id);
-        if (opponentId) {
-          io.to(opponentId).emit('opponentDisconnected');
-        }
+        if (opponentId) io.to(opponentId).emit('opponentDisconnected');
         delete rooms[socket.roomId];
       }
     });

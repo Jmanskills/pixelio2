@@ -1,21 +1,28 @@
-// ═══════════════════════════════════════════════════════════
-//  WIZARD DUEL — CLIENT
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  PIXELIO — CLIENT
+// ═══════════════════════════════════════════════════
 
-// ── State ──────────────────────────────────────────────────
+// ── App State ───────────────────────────────────────
 let socket = null;
 let myId = null;
-let myUsername = null;
+let profile = null;   // full user profile from server
 let authToken = null;
-let gameRunning = false;
-let gameState = null;
+let shopCatalog = [];
+let currentShopTab = 'robe';
 let currentTab = 'login';
+let pendingInviteFrom = null;
+let onlineFriends = new Set();
 
-const cooldownTimers = { fireball: 0, iceshard: 0, thunder: 0, shield: 0 };
-const COOLDOWNS = { fireball: 2000, iceshard: 800, thunder: 1400, shield: 8000 };
-const SPELL_KEYS = { KeyQ: 'fireball', KeyE: 'iceshard', KeyR: 'thunder', KeyF: 'shield' };
+const ROBE_COLORS = {
+  robe_default: 0x6a0dad, robe_crimson: 0xcc1122, robe_ocean: 0x0066cc,
+  robe_forest: 0x1a7a2a,  robe_gold: 0xd4a017,   robe_shadow: 0x1a1a2e, robe_rainbow: 0xff44aa
+};
+const SPELL_COLORS = {
+  spell_default: null, spell_lava: 0xff6600, spell_frost: 0x88eeff,
+  spell_venom: 0x44ff44, spell_dark: 0x220033, spell_solar: 0xffdd00
+};
 
-// ── Screen helpers ─────────────────────────────────────────
+// ── Screen helpers ───────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -28,147 +35,581 @@ function switchTab(tab) {
   document.getElementById('auth-error').classList.add('hidden');
 }
 
-// ── Menu particles ─────────────────────────────────────────
-function spawnParticles() {
-  const container = document.getElementById('particles');
-  const colors = ['#9b30e8', '#f0c040', '#00e5cc', '#4488ff', '#ff6644'];
+// ── Particles ────────────────────────────────────────
+function spawnParticles(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const colors = ['#9b30e8','#f0c040','#00e5cc','#4488ff','#ff6644'];
   for (let i = 0; i < 40; i++) {
     const p = document.createElement('div');
     p.className = 'particle';
     const size = Math.random() * 6 + 2;
-    p.style.cssText = `
-      width:${size}px; height:${size}px;
-      left:${Math.random()*100}%;
-      bottom:${Math.random()*20}%;
-      background:${colors[Math.floor(Math.random()*colors.length)]};
-      animation-duration:${Math.random()*8+6}s;
-      animation-delay:${Math.random()*8}s;
-    `;
+    p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;bottom:${Math.random()*20}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${Math.random()*8+6}s;animation-delay:${Math.random()*8}s;`;
     container.appendChild(p);
   }
 }
 
-// ── Auth ───────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+//  AUTH & SESSION
+// ══════════════════════════════════════════════════════
+async function tryAutoLogin() {
+  const saved = localStorage.getItem('pixelio_token');
+  if (!saved) return false;
+  document.getElementById('splash-auth-wrap').classList.add('hidden');
+  document.getElementById('splash-loading').classList.remove('hidden');
+  try {
+    const res = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + saved } });
+    if (!res.ok) throw new Error('invalid');
+    const data = await res.json();
+    authToken = saved;
+    profile = data.profile;
+    await loadShopCatalog();
+    enterMainMenu();
+    return true;
+  } catch {
+    localStorage.removeItem('pixelio_token');
+    document.getElementById('splash-auth-wrap').classList.remove('hidden');
+    document.getElementById('splash-loading').classList.add('hidden');
+    return false;
+  }
+}
+
 async function doAuth() {
   const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
   const errEl = document.getElementById('auth-error');
   errEl.classList.add('hidden');
-
-  if (!username || !password) {
-    errEl.textContent = 'Please enter username and password.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-
+  if (!username || !password) { errEl.textContent = 'Please enter username and password.'; errEl.classList.remove('hidden'); return; }
   const endpoint = currentTab === 'login' ? '/api/auth/login' : '/api/auth/register';
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+    const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
     const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Authentication failed.';
-      errEl.classList.remove('hidden');
-      return;
-    }
+    if (!res.ok) { errEl.textContent = data.error || 'Authentication failed.'; errEl.classList.remove('hidden'); return; }
     authToken = data.token;
-    myUsername = data.username;
-    joinLobby();
-  } catch (e) {
-    errEl.textContent = 'Network error. Please try again.';
-    errEl.classList.remove('hidden');
+    profile = data.profile;
+    localStorage.setItem('pixelio_token', authToken);
+    await loadShopCatalog();
+    enterMainMenu();
+  } catch { errEl.textContent = 'Network error. Try again.'; errEl.classList.remove('hidden'); }
+}
+
+function logout() {
+  localStorage.removeItem('pixelio_token');
+  authToken = null; profile = null; myId = null;
+  if (socket) { socket.disconnect(); socket = null; }
+  showScreen('screen-splash');
+  document.getElementById('splash-auth-wrap').classList.remove('hidden');
+  document.getElementById('splash-loading').classList.add('hidden');
+}
+
+// ══════════════════════════════════════════════════════
+//  MAIN MENU
+// ══════════════════════════════════════════════════════
+function enterMainMenu() {
+  updateMenuUI();
+  showScreen('screen-mainmenu');
+  spawnParticles('menu-particles');
+  renderPreviewCanvas();
+  menuNav('play');
+  connectSocket();
+  loadFriends();
+}
+
+function updateMenuUI() {
+  if (!profile) return;
+  document.getElementById('menu-username').textContent = profile.username;
+  document.getElementById('menu-coins').textContent = '🪙 ' + profile.coins;
+  document.getElementById('shop-coins').textContent = profile.coins;
+  document.getElementById('menu-wl').textContent = `${profile.wins}W / ${profile.losses}L`;
+  document.getElementById('stat-wins').textContent = profile.wins;
+  document.getElementById('stat-losses').textContent = profile.losses;
+  const wr = profile.wins + profile.losses > 0
+    ? Math.round(profile.wins / (profile.wins + profile.losses) * 100) + '%'
+    : '—';
+  document.getElementById('stat-ratio').textContent = wr;
+
+  // Title badge
+  const titleItem = shopCatalog.find(i => i.id === profile.equippedTitle);
+  document.getElementById('menu-title-badge').textContent = titleItem ? titleItem.name : 'Wizard';
+  document.getElementById('lobby-username').textContent = profile.username;
+
+  // Avatar robe color
+  const robeColor = hexToCSS(ROBE_COLORS[profile.equippedRobe] || 0x6a0dad);
+  const av = document.getElementById('avatar-robe');
+  av.style.background = robeColor;
+  av.textContent = '🧙';
+  av.style.display = 'flex';
+  av.style.alignItems = 'center';
+  av.style.justifyContent = 'center';
+  av.style.fontSize = '1.4rem';
+}
+
+function hexToCSS(hex) {
+  return '#' + hex.toString(16).padStart(6, '0');
+}
+
+function menuNav(tab) {
+  document.querySelectorAll('.menu-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.menu-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('nav-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'shop') renderShop();
+  if (tab === 'friends') loadFriends();
+}
+
+// ── Mini wizard preview canvas ───────────────────────
+function renderPreviewCanvas() {
+  const canvas = document.getElementById('preview-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const robeHex = ROBE_COLORS[profile ? profile.equippedRobe : 'robe_default'] || 0x6a0dad;
+  const robeColor = hexToCSS(robeHex);
+
+  // Background glow
+  const grd = ctx.createRadialGradient(w/2, h*0.6, 10, w/2, h*0.6, 90);
+  grd.addColorStop(0, robeColor + '44');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, w, h);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(w/2, h-20, 35, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Robe body (trapezoid)
+  ctx.fillStyle = robeColor;
+  ctx.beginPath();
+  ctx.moveTo(w/2-22, h-30);
+  ctx.lineTo(w/2+22, h-30);
+  ctx.lineTo(w/2+32, h-30);
+  ctx.lineTo(w/2+28, h-100);
+  ctx.lineTo(w/2-28, h-100);
+  ctx.lineTo(w/2-32, h-30);
+  ctx.closePath();
+  ctx.fill();
+
+  // Darker robe shading
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(w/2+2, h-30);
+  ctx.lineTo(w/2+32, h-30);
+  ctx.lineTo(w/2+28, h-100);
+  ctx.lineTo(w/2+2, h-100);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f5d5a0';
+  ctx.beginPath();
+  ctx.arc(w/2, h-116, 20, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hat brim
+  ctx.fillStyle = '#111122';
+  ctx.beginPath();
+  ctx.ellipse(w/2, h-134, 28, 7, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hat cone
+  ctx.fillStyle = '#111122';
+  ctx.beginPath();
+  ctx.moveTo(w/2-20, h-134);
+  ctx.lineTo(w/2+20, h-134);
+  ctx.lineTo(w/2, h-186);
+  ctx.closePath();
+  ctx.fill();
+
+  // Hat star
+  ctx.fillStyle = robeColor;
+  ctx.font = '14px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('★', w/2, h-155);
+
+  // Staff
+  ctx.strokeStyle = '#8b5e3c';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(w/2+34, h-30);
+  ctx.lineTo(w/2+38, h-145);
+  ctx.stroke();
+
+  // Staff crystal
+  ctx.fillStyle = robeColor;
+  ctx.font = '16px serif';
+  ctx.fillText('◆', w/2+36, h-148);
+
+  // Spell effect tint on staff crystal if custom spell
+  const spellColor = SPELL_COLORS[profile ? profile.equippedSpell : 'spell_default'];
+  if (spellColor) {
+    ctx.fillStyle = hexToCSS(spellColor);
+    ctx.globalAlpha = 0.6;
+    ctx.font = '16px serif';
+    ctx.fillText('◆', w/2+36, h-148);
+    ctx.globalAlpha = 1;
+  }
+
+  // Title badge
+  if (profile) {
+    const titleItem = shopCatalog.find(i => i.id === profile.equippedTitle);
+    if (titleItem && titleItem.name !== 'Wizard') {
+      ctx.fillStyle = titleItem.preview || '#f0c040';
+      ctx.font = 'bold 11px Cinzel, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(titleItem.name.toUpperCase(), w/2, h-10);
+    }
   }
 }
 
-// ── Lobby / Socket ─────────────────────────────────────────
-function joinLobby() {
-  document.getElementById('lobby-username').textContent = myUsername;
-  showScreen('screen-lobby');
+// ══════════════════════════════════════════════════════
+//  SHOP
+// ══════════════════════════════════════════════════════
+async function loadShopCatalog() {
+  try {
+    const res = await fetch('/api/shop');
+    const data = await res.json();
+    shopCatalog = data.items || [];
+  } catch { shopCatalog = []; }
+}
 
-  if (socket) socket.disconnect();
+function shopTab(tab) {
+  currentShopTab = tab;
+  document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderShop();
+}
+
+function renderShop() {
+  const grid = document.getElementById('shop-items-grid');
+  grid.innerHTML = '';
+  const items = shopCatalog.filter(i => i.category === currentShopTab);
+  items.forEach(item => {
+    const owned = profile.inventory.includes(item.id);
+    const equipped =
+      (item.category === 'robe'  && profile.equippedRobe  === item.id) ||
+      (item.category === 'spell' && profile.equippedSpell === item.id) ||
+      (item.category === 'title' && profile.equippedTitle === item.id);
+
+    const card = document.createElement('div');
+    card.className = 'shop-item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+
+    // Preview swatch
+    const preview = document.createElement('div');
+    preview.className = 'shop-preview';
+    if (item.category === 'robe') {
+      preview.style.background = hexToCSS(item.color || 0x6a0dad);
+      preview.textContent = '🧙';
+    } else if (item.category === 'spell') {
+      preview.style.background = item.color ? hexToCSS(item.color) : '#9b30e8';
+      preview.textContent = '✨';
+    } else {
+      preview.style.background = item.preview || '#f0c040';
+      preview.textContent = '🏷️';
+    }
+
+    const name = document.createElement('div');
+    name.className = 'shop-item-name';
+    name.textContent = item.name;
+
+    const desc = document.createElement('div');
+    desc.className = 'shop-item-desc';
+    desc.textContent = item.description;
+
+    // Status badge
+    if (equipped) {
+      const badge = document.createElement('div');
+      badge.className = 'shop-item-status equipped';
+      badge.textContent = 'Equipped';
+      card.appendChild(badge);
+    } else if (owned) {
+      const badge = document.createElement('div');
+      badge.className = 'shop-item-status owned';
+      badge.textContent = 'Owned';
+      card.appendChild(badge);
+    }
+
+    // Action button
+    const btn = document.createElement('button');
+    btn.className = 'shop-item-btn';
+    if (equipped) {
+      btn.textContent = '✓ Equipped';
+      btn.className += ' equipped-btn';
+      btn.disabled = true;
+    } else if (owned) {
+      btn.textContent = 'Equip';
+      btn.className += ' equip';
+      btn.onclick = () => equipItem(item.id);
+    } else if (item.price === 0) {
+      btn.textContent = 'Free — Equip';
+      btn.className += ' equip';
+      btn.onclick = () => buyAndEquip(item.id, 0);
+    } else {
+      btn.textContent = '🪙 ' + item.price;
+      if (profile.coins < item.price) btn.disabled = true;
+      btn.onclick = () => buyAndEquip(item.id, item.price);
+    }
+
+    card.appendChild(preview);
+    card.appendChild(name);
+    card.appendChild(desc);
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+}
+
+async function buyAndEquip(itemId, price) {
+  if (price > 0) {
+    const res = await apiFetch('/api/shop/buy', 'POST', { itemId });
+    if (!res) return;
+    profile = res.profile;
+  }
+  await equipItem(itemId);
+}
+
+async function equipItem(itemId) {
+  const res = await apiFetch('/api/shop/equip', 'POST', { itemId });
+  if (!res) return;
+  profile = res.profile;
+  updateMenuUI();
+  renderShop();
+  renderPreviewCanvas();
+}
+
+// ══════════════════════════════════════════════════════
+//  FRIENDS
+// ══════════════════════════════════════════════════════
+async function loadFriends() {
+  const res = await apiFetch('/api/friends', 'GET');
+  if (!res) return;
+  profile.friends = res.friends;
+  profile.friendRequests = res.friendRequests;
+  renderFriends();
+  updateRequestBadge();
+}
+
+function renderFriends() {
+  // Requests
+  const reqList = document.getElementById('requests-list');
+  const reqSection = document.getElementById('requests-section');
+  reqList.innerHTML = '';
+  if (profile.friendRequests.length === 0) {
+    reqSection.style.display = 'none';
+  } else {
+    reqSection.style.display = '';
+    profile.friendRequests.forEach(username => {
+      const item = document.createElement('div');
+      item.className = 'friend-item';
+      item.innerHTML = `
+        <div class="friend-item-left">
+          <div class="friend-dot ${onlineFriends.has(username) ? 'online' : ''}"></div>
+          <div><div class="friend-name">${username}</div></div>
+        </div>
+        <div class="friend-item-right">
+          <button class="btn-small btn-accept" onclick="respondRequest('${username}','accept')">Accept</button>
+          <button class="btn-small btn-decline" onclick="respondRequest('${username}','decline')">Decline</button>
+        </div>`;
+      reqList.appendChild(item);
+    });
+  }
+
+  // Friends list
+  const list = document.getElementById('friends-list');
+  list.innerHTML = '';
+  if (profile.friends.length === 0) {
+    list.innerHTML = '<div class="friends-empty">No friends yet. Add some above!</div>';
+    return;
+  }
+  profile.friends.forEach(username => {
+    const online = onlineFriends.has(username);
+    const item = document.createElement('div');
+    item.className = 'friend-item';
+    item.innerHTML = `
+      <div class="friend-item-left">
+        <div class="friend-dot ${online ? 'online' : ''}"></div>
+        <div>
+          <div class="friend-name">${username}</div>
+          <div class="friend-title">${online ? '🟢 Online' : '⚫ Offline'}</div>
+        </div>
+      </div>
+      <div class="friend-item-right">
+        ${online ? `<button class="btn-small" onclick="inviteFriend('${username}')">⚔️ Invite</button>` : ''}
+        <button class="btn-small btn-decline" onclick="removeFriend('${username}')">Remove</button>
+      </div>`;
+    list.appendChild(item);
+  });
+}
+
+function updateRequestBadge() {
+  const badge = document.getElementById('friends-badge');
+  const count = profile.friendRequests ? profile.friendRequests.length : 0;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+async function sendFriendRequest() {
+  const input = document.getElementById('friend-search-input');
+  const username = input.value.trim();
+  if (!username) return;
+  const msgEl = document.getElementById('friend-msg');
+  msgEl.classList.add('hidden');
+  const res = await apiFetch('/api/friends/request', 'POST', { username });
+  if (res && res.message) {
+    msgEl.textContent = res.message;
+    msgEl.className = 'friend-msg success';
+    msgEl.classList.remove('hidden');
+    input.value = '';
+  }
+}
+
+async function respondRequest(username, action) {
+  const endpoint = action === 'accept' ? '/api/friends/accept' : '/api/friends/decline';
+  const res = await apiFetch(endpoint, 'POST', { username });
+  if (res && res.profile) { profile = res.profile; }
+  await loadFriends();
+}
+
+async function removeFriend(username) {
+  const res = await apiFetch('/api/friends/remove', 'POST', { username });
+  if (res && res.profile) { profile = res.profile; }
+  await loadFriends();
+}
+
+function inviteFriend(username) {
+  if (!socket) return;
+  socket.emit('sendInvite', { toUsername: username });
+  const msgEl = document.getElementById('friend-msg');
+  msgEl.textContent = `Invite sent to ${username}!`;
+  msgEl.className = 'friend-msg success';
+  msgEl.classList.remove('hidden');
+  setTimeout(() => msgEl.classList.add('hidden'), 3000);
+}
+
+// ══════════════════════════════════════════════════════
+//  SOCKET CONNECTION
+// ══════════════════════════════════════════════════════
+function connectSocket() {
+  if (socket && socket.connected) return;
   socket = io();
 
   socket.on('connect', () => {
-    socket.emit('joinQueue', { username: myUsername, token: authToken });
-    document.getElementById('lobby-msg').textContent = 'Searching for an opponent...';
+    // Register presence
+    socket.emit('joinQueue', {
+      username: profile.username,
+      token: authToken,
+      cosmetics: {
+        equippedRobe: profile.equippedRobe,
+        equippedSpell: profile.equippedSpell,
+        equippedTitle: profile.equippedTitle
+      }
+    });
+    // Immediately leave queue — we only wanted to register online presence
+    // The actual queue join happens when they click Play
+    socket.emit('leaveQueue');
   });
 
-  socket.on('waiting', ({ message }) => {
-    document.getElementById('lobby-msg').textContent = message;
-  });
-
-  socket.on('yourId', (id) => { myId = id; });
+  socket.on('yourId', id => { myId = id; });
 
   socket.on('matchFound', ({ players }) => {
     startGame(players);
   });
 
-  socket.on('gameState', (state) => {
+  socket.on('gameState', state => {
     if (gameRunning) updateGameState(state);
   });
 
-  socket.on('playerHit', ({ playerId, hp, damage, spellKey, stunned }) => {
-    if (playerId === myId) {
-      flashHit();
-      updateMyHP(hp);
-      if (stunned) showStun();
-    } else {
-      updateOppHP(hp);
-    }
+  socket.on('playerHit', ({ playerId, hp, spellKey, stunned }) => {
+    if (playerId === myId) { flashHit(); updateMyHP(hp); if (stunned) showStun(); }
+    else updateOppHP(hp);
   });
 
-  socket.on('shieldActivated', ({ playerId }) => {
-    if (playerMeshes[playerId]) {
-      setShieldVisible(playerId, true);
-    }
+  socket.on('shieldActivated', ({ playerId }) => { setShieldVisible(playerId, true); });
+  socket.on('shieldExpired',   ({ playerId }) => { setShieldVisible(playerId, false); });
+
+  socket.on('gameOver', ({ winnerId, winnerName, coinsEarned }) => {
+    const iWon = winnerId === myId;
+    const earned = coinsEarned ? (coinsEarned[myId] || 0) : 0;
+    if (earned > 0) profile.coins += earned;
+    endGame(iWon, winnerName, false, earned);
   });
 
-  socket.on('shieldExpired', ({ playerId }) => {
-    setShieldVisible(playerId, false);
+  socket.on('opponentDisconnected', () => endGame(true, profile.username, true, 50));
+
+  // Online presence from server
+  socket.on('onlineStatus', ({ username, online }) => {
+    if (online) onlineFriends.add(username);
+    else onlineFriends.delete(username);
+    renderFriends();
   });
 
-  socket.on('shieldBlocked', ({ playerId }) => {
-    showFloatingText('Blocked!', playerMeshes[playerId]);
+  // Friend invites
+  socket.on('friendInvite', ({ fromUsername }) => {
+    pendingInviteFrom = fromUsername;
+    document.getElementById('invite-from').textContent = fromUsername;
+    document.getElementById('invite-toast').classList.remove('hidden');
   });
 
-  socket.on('gameOver', ({ winnerId, winnerName }) => {
-    endGame(winnerId === myId, winnerName);
+  socket.on('inviteDeclined', ({ byUsername }) => {
+    alert(`${byUsername} declined your invite.`);
   });
 
-  socket.on('opponentDisconnected', () => {
-    endGame(true, myUsername, true);
+  socket.on('inviteError', ({ message }) => {
+    alert(message);
+  });
+
+  socket.on('waiting', ({ message }) => {
+    document.getElementById('lobby-msg').textContent = message;
   });
 }
 
-// ═══════════════════════════════════════════════════════════
+function joinQueue() {
+  if (!socket) connectSocket();
+  document.getElementById('lobby-username').textContent = profile.username;
+  showScreen('screen-lobby');
+  socket.emit('joinQueue', {
+    username: profile.username,
+    token: authToken,
+    cosmetics: {
+      equippedRobe: profile.equippedRobe,
+      equippedSpell: profile.equippedSpell,
+      equippedTitle: profile.equippedTitle
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
 //  THREE.JS RENDERING
-// ═══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 let renderer, scene, camera;
-let playerMeshes = {};     // id -> { body, shield }
-let projMeshes = {};       // id -> mesh
-let groundMesh, skyMesh;
+let playerMeshes = {};
+let projMeshes   = {};
 let animFrameId;
+let gameRunning  = false;
 
-// Camera follow
-let cameraAngleX = 0.4;
-let cameraAngleY = 0;
-const CAMERA_DIST = 14;
+const CAMERA_DIST   = 14;
 const CAMERA_HEIGHT = 6;
+const COOLDOWNS = { fireball: 2000, iceshard: 800, thunder: 1400, shield: 8000 };
+const SPELL_KEYS = { KeyQ: 'fireball', KeyE: 'iceshard', KeyR: 'thunder', KeyF: 'shield' };
+const SPELL_SLOT_IDS = { fireball: 'spell-1', iceshard: 'spell-2', thunder: 'spell-3', shield: 'spell-4' };
+const cooldownTimers = { fireball: 0, iceshard: 0, thunder: 0, shield: 0 };
 
-// Input state
-const keys = {};
-let mouseX = 0, mouseY = 0;
+const keys  = {};
+let mouseX  = 0;
 let pointerLocked = false;
+let inputInterval = null;
 
 function initThree() {
   const canvas = document.getElementById('game-canvas');
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setClearColor(0x0a0518);
 
   scene = new THREE.Scene();
@@ -188,311 +629,219 @@ function initThree() {
 }
 
 function buildArena() {
-  // Ground — mossy stone courtyard
-  const groundGeo = new THREE.PlaneGeometry(80, 80, 20, 20);
+  // Ground
   const groundMat = new THREE.MeshLambertMaterial({ color: 0x2d4a2d });
-  groundMesh = new THREE.Mesh(groundGeo, groundMat);
-  groundMesh.rotation.x = -Math.PI / 2;
-  groundMesh.receiveShadow = true;
-  scene.add(groundMesh);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80, 20, 20), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-  // Stone path circle
-  const pathGeo = new THREE.CircleGeometry(12, 48);
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0x5a5058 });
-  const path = new THREE.Mesh(pathGeo, pathMat);
+  // Stone path
+  const path = new THREE.Mesh(new THREE.CircleGeometry(12, 48), new THREE.MeshLambertMaterial({ color: 0x5a5058 }));
   path.rotation.x = -Math.PI / 2;
   path.position.y = 0.01;
   scene.add(path);
 
-  // Arena boundary wall segments (low stone walls)
+  // Wall segments
   const wallMat = new THREE.MeshLambertMaterial({ color: 0x7a6868 });
   for (let i = 0; i < 12; i++) {
     const angle = (i / 12) * Math.PI * 2;
-    const wallGeo = new THREE.BoxGeometry(3, 1.2, 0.5);
-    const wall = new THREE.Mesh(wallGeo, wallMat);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 0.5), wallMat);
     wall.position.set(Math.cos(angle) * 13, 0.6, Math.sin(angle) * 13);
     wall.rotation.y = angle + Math.PI / 2;
     wall.castShadow = true;
     scene.add(wall);
   }
 
-  // Central fountain / obelisk
-  const obeliskGeo = new THREE.CylinderGeometry(0.2, 0.4, 3, 6);
-  const obeliskMat = new THREE.MeshLambertMaterial({ color: 0x886688 });
-  const obelisk = new THREE.Mesh(obeliskGeo, obeliskMat);
+  // Obelisk
+  const obelisk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 3, 6), new THREE.MeshLambertMaterial({ color: 0x886688 }));
   obelisk.position.set(0, 1.5, 0);
   obelisk.castShadow = true;
   scene.add(obelisk);
 
-  // Glowing crystal on top of obelisk
-  const crystalGeo = new THREE.OctahedronGeometry(0.4);
-  const crystalMat = new THREE.MeshBasicMaterial({ color: 0x9b30e8 });
-  const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+  // Crystal
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0x9b30e8 }));
   crystal.position.set(0, 3.4, 0);
   scene.add(crystal);
-
-  // Crystal point light
   const crystalLight = new THREE.PointLight(0x9b30e8, 1.5, 12);
   crystalLight.position.set(0, 3.5, 0);
   scene.add(crystalLight);
-
-  // Animate crystal
-  (function animateCrystal() {
+  (function animCrystal() {
     const t = Date.now() * 0.001;
     crystal.rotation.y = t;
     crystal.position.y = 3.4 + Math.sin(t * 2) * 0.08;
     crystalLight.intensity = 1.2 + Math.sin(t * 3) * 0.3;
-    requestAnimationFrame(animateCrystal);
+    requestAnimationFrame(animCrystal);
   })();
 }
 
 function addTrees() {
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
   const leafMat  = new THREE.MeshLambertMaterial({ color: 0x1a5c2a });
-
-  const positions = [
-    [-18, -18], [18, -18], [-18, 18], [18, 18],
-    [0, -22], [0, 22], [-22, 0], [22, 0],
-    [-14, -24], [14, -24], [-24, 14], [24, -14]
-  ];
-
-  positions.forEach(([x, z]) => {
-    const height = 4 + Math.random() * 3;
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.35, height, 6);
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.set(x, height / 2, z);
-    trunk.castShadow = true;
-    scene.add(trunk);
-
+  [[- 18,-18],[18,-18],[-18,18],[18,18],[0,-22],[0,22],[-22,0],[22,0],[-14,-24],[14,-24],[-24,14],[24,-14]].forEach(([x,z]) => {
+    const h = 4 + Math.random() * 3;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.35, h, 6), trunkMat);
+    trunk.position.set(x, h/2, z); trunk.castShadow = true; scene.add(trunk);
     for (let i = 0; i < 3; i++) {
-      const r = 1.5 - i * 0.3;
-      const leafGeo = new THREE.ConeGeometry(r + 0.5, 2, 7);
-      const leaf = new THREE.Mesh(leafGeo, leafMat);
-      leaf.position.set(x, height - 0.5 + i * 1.4, z);
-      leaf.castShadow = true;
-      scene.add(leaf);
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(2 - i*0.3, 2, 7), leafMat);
+      leaf.position.set(x, h - 0.5 + i * 1.4, z); leaf.castShadow = true; scene.add(leaf);
     }
   });
 }
 
 function addLights() {
   scene.add(new THREE.AmbientLight(0x334466, 0.8));
-
   const moon = new THREE.DirectionalLight(0x8899bb, 0.6);
-  moon.position.set(10, 20, 10);
-  moon.castShadow = true;
-  moon.shadow.mapSize.width = 1024;
-  moon.shadow.mapSize.height = 1024;
-  scene.add(moon);
-
-  // Rim lights for drama
-  const rimL = new THREE.PointLight(0x4400aa, 0.8, 40);
-  rimL.position.set(-15, 8, -15);
-  scene.add(rimL);
-
-  const rimR = new THREE.PointLight(0x004488, 0.8, 40);
-  rimR.position.set(15, 8, 15);
-  scene.add(rimR);
+  moon.position.set(10, 20, 10); moon.castShadow = true; scene.add(moon);
+  const r1 = new THREE.PointLight(0x4400aa, 0.8, 40); r1.position.set(-15, 8, -15); scene.add(r1);
+  const r2 = new THREE.PointLight(0x004488, 0.8, 40); r2.position.set( 15, 8,  15); scene.add(r2);
 }
 
 function addSkybox() {
-  // Simple gradient sky using a large sphere
-  const skyGeo = new THREE.SphereGeometry(100, 16, 8);
-  const skyMat = new THREE.MeshBasicMaterial({
-    color: 0x050312,
-    side: THREE.BackSide
-  });
-  skyMesh = new THREE.Mesh(skyGeo, skyMat);
-  scene.add(skyMesh);
-
-  // Stars
-  const starGeo = new THREE.BufferGeometry();
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 16, 8), new THREE.MeshBasicMaterial({ color: 0x050312, side: THREE.BackSide }));
+  scene.add(sky);
   const starVerts = [];
   for (let i = 0; i < 800; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi   = Math.acos(2 * Math.random() - 1);
-    const r     = 90;
-    starVerts.push(
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.cos(phi),
-      r * Math.sin(phi) * Math.sin(theta)
-    );
+    const theta = Math.random() * Math.PI * 2, phi = Math.acos(2*Math.random()-1), r = 90;
+    starVerts.push(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
   }
-  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
-  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3 });
-  scene.add(new THREE.Points(starGeo, starMat));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.3 })));
 }
 
-// ── Wizard mesh ──────────────────────────────────────────────
-function createWizardMesh(color) {
+// ── Wizard mesh with cosmetics ───────────────────────
+function createWizardMesh(robeItemId, spellItemId) {
+  const robeColor  = ROBE_COLORS[robeItemId]  || 0x6a0dad;
+  const spellColor = SPELL_COLORS[spellItemId] || robeColor;
   const group = new THREE.Group();
 
-  // Robe body
-  const robeGeo = new THREE.CylinderGeometry(0.3, 0.6, 1.6, 8);
-  const robeMat = new THREE.MeshLambertMaterial({ color });
-  const robe = new THREE.Mesh(robeGeo, robeMat);
-  robe.position.y = 0.8;
-  robe.castShadow = true;
-  group.add(robe);
+  const robeMat = new THREE.MeshLambertMaterial({ color: robeColor });
+
+  // Robe
+  const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 1.6, 8), robeMat);
+  robe.position.y = 0.8; robe.castShadow = true; group.add(robe);
 
   // Head
-  const headGeo = new THREE.SphereGeometry(0.28, 8, 8);
-  const skinMat = new THREE.MeshLambertMaterial({ color: 0xf5d5a0 });
-  const head = new THREE.Mesh(headGeo, skinMat);
-  head.position.y = 1.9;
-  head.castShadow = true;
-  group.add(head);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), new THREE.MeshLambertMaterial({ color: 0xf5d5a0 }));
+  head.position.y = 1.9; group.add(head);
 
-  // Hat brim
-  const brimGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.08, 12);
-  const hatMat  = new THREE.MeshLambertMaterial({ color: 0x111122 });
-  const brim = new THREE.Mesh(brimGeo, hatMat);
-  brim.position.y = 2.1;
-  group.add(brim);
-
-  // Hat cone
-  const coneGeo = new THREE.ConeGeometry(0.3, 0.7, 12);
-  const cone = new THREE.Mesh(coneGeo, hatMat);
-  cone.position.y = 2.55;
-  group.add(cone);
+  // Hat
+  const hatMat = new THREE.MeshLambertMaterial({ color: 0x111122 });
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.08, 12), hatMat);
+  brim.position.y = 2.1; group.add(brim);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.7, 12), hatMat);
+  cone.position.y = 2.55; group.add(cone);
 
   // Staff
-  const staffGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6);
-  const staffMat = new THREE.MeshLambertMaterial({ color: 0x8b5e3c });
-  const staff = new THREE.Mesh(staffGeo, staffMat);
-  staff.position.set(0.55, 1.1, 0);
-  staff.rotation.z = 0.1;
-  group.add(staff);
+  const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), new THREE.MeshLambertMaterial({ color: 0x8b5e3c }));
+  staff.position.set(0.55, 1.1, 0); staff.rotation.z = 0.1; group.add(staff);
 
-  // Staff crystal
-  const staffCrystalGeo = new THREE.OctahedronGeometry(0.15);
-  const staffCrystalMat = new THREE.MeshBasicMaterial({ color });
-  const staffCrystal = new THREE.Mesh(staffCrystalGeo, staffCrystalMat);
-  staffCrystal.position.set(0.65, 2.25, 0);
-  group.add(staffCrystal);
+  // Staff crystal (spell color)
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshBasicMaterial({ color: spellColor }));
+  crystal.position.set(0.65, 2.25, 0); group.add(crystal);
 
-  // Shield bubble (hidden by default)
-  const shieldGeo = new THREE.SphereGeometry(1.1, 16, 16);
-  const shieldMat = new THREE.MeshBasicMaterial({
-    color: 0x00ff88, transparent: true, opacity: 0.25, side: THREE.DoubleSide
-  });
-  const shield = new THREE.Mesh(shieldGeo, shieldMat);
-  shield.position.y = 1.0;
-  shield.visible = false;
-  group.add(shield);
+  // Crystal glow light
+  const glow = new THREE.PointLight(spellColor, 1.2, 5);
+  glow.position.set(0.65, 2.25, 0); group.add(glow);
 
-  // Name label is handled via HUD, not 3D text
+  // Shield bubble
+  const shield = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+  shield.position.y = 1.0; shield.visible = false; group.add(shield);
 
   group.userData.shield = shield;
-  group.userData.staffCrystal = staffCrystal;
-
   return group;
 }
 
-function setShieldVisible(playerId, visible) {
-  const mesh = playerMeshes[playerId];
-  if (mesh && mesh.userData.shield) {
-    mesh.userData.shield.visible = visible;
-  }
+function setShieldVisible(id, v) {
+  if (playerMeshes[id]) playerMeshes[id].userData.shield.visible = v;
 }
 
-// ── Projectile mesh ─────────────────────────────────────────
-const PROJ_COLORS = {
-  fireball:  0xff4400,
-  iceshard:  0x88ddff,
-  thunder:   0xffee00,
-};
+// ── Projectile mesh ──────────────────────────────────
+const BASE_SPELL_COLORS = { fireball: 0xff4400, iceshard: 0x88ddff, thunder: 0xffee00 };
 
-function createProjectileMesh(spellKey) {
-  const color = PROJ_COLORS[spellKey] || 0xffffff;
-  const geo = spellKey === 'iceshard'
-    ? new THREE.OctahedronGeometry(0.2)
-    : new THREE.SphereGeometry(0.25, 8, 8);
-  const mat = new THREE.MeshBasicMaterial({ color });
-  const mesh = new THREE.Mesh(geo, mat);
-
-  // Glow point light
-  const light = new THREE.PointLight(color, 1.5, 4);
-  mesh.add(light);
-
+function createProjectileMesh(spellKey, spellItemId) {
+  let color = BASE_SPELL_COLORS[spellKey] || 0xffffff;
+  const override = SPELL_COLORS[spellItemId];
+  if (override) {
+    // Tint the base color with the equipped spell color
+    color = blendColors(color, override, 0.5);
+  }
+  const geo = spellKey === 'iceshard' ? new THREE.OctahedronGeometry(0.2) : new THREE.SphereGeometry(0.25, 8, 8);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
+  mesh.add(new THREE.PointLight(color, 1.5, 4));
   return mesh;
 }
 
-// ── Game start ──────────────────────────────────────────────
+function blendColors(c1, c2, t) {
+  const r1=(c1>>16)&0xff, g1=(c1>>8)&0xff, b1=c1&0xff;
+  const r2=(c2>>16)&0xff, g2=(c2>>8)&0xff, b2=c2&0xff;
+  return (Math.round(r1+(r2-r1)*t)<<16)|(Math.round(g1+(g2-g1)*t)<<8)|Math.round(b1+(b2-b1)*t);
+}
+
+// ── Start game ───────────────────────────────────────
 function startGame(players) {
   showScreen('screen-game');
   gameRunning = true;
-  gameState = null;
 
-  // Reset old meshes
   Object.values(playerMeshes).forEach(m => scene.remove(m));
   Object.values(projMeshes).forEach(m => scene.remove(m));
-  playerMeshes = {};
-  projMeshes = {};
+  playerMeshes = {}; projMeshes = {};
 
   if (!renderer) initThree();
 
-  // Create wizard meshes
   players.forEach(p => {
-    const isMe = p.id === myId;
-    const color = isMe ? 0x9b30e8 : 0xe83030;
-    const mesh = createWizardMesh(color);
+    const mesh = createWizardMesh(p.equippedRobe || 'robe_default', p.equippedSpell || 'spell_default');
     mesh.position.set(p.x, 0, p.z);
     scene.add(mesh);
     playerMeshes[p.id] = mesh;
   });
 
-  // HUD names
-  const me = players.find(p => p.id === myId);
+  const me  = players.find(p => p.id === myId);
   const opp = players.find(p => p.id !== myId);
-  if (me)  document.getElementById('hud-name-you').textContent = me.username;
-  if (opp) document.getElementById('hud-name-opp').textContent = opp.username;
-  updateMyHP(100);
-  updateOppHP(100);
 
+  const titleItem = id => shopCatalog.find(i => i.id === id);
+
+  if (me) {
+    document.getElementById('hud-name-you').textContent = me.username;
+    const t = titleItem(me.equippedTitle);
+    document.getElementById('hud-title-you').textContent = t ? t.name : '';
+  }
+  if (opp) {
+    document.getElementById('hud-name-opp').textContent = opp.username;
+    const t = titleItem(opp.equippedTitle);
+    document.getElementById('hud-title-opp').textContent = t ? t.name : '';
+  }
+
+  updateMyHP(100); updateOppHP(100);
   setupInputListeners();
   renderLoop();
 }
 
-// ── Update from server ──────────────────────────────────────
 function updateGameState(state) {
-  gameState = state;
-
-  // Update player meshes
   Object.entries(state.players).forEach(([id, p]) => {
     if (!playerMeshes[id]) return;
-    const mesh = playerMeshes[id];
-    mesh.position.set(p.x, 0, p.z);
-    mesh.rotation.y = p.rotY;
-    mesh.visible = p.alive;
+    playerMeshes[id].position.set(p.x, 0, p.z);
+    playerMeshes[id].rotation.y = p.rotY;
+    playerMeshes[id].visible = p.alive;
   });
 
-  // Projectiles — add/remove
-  const serverProjIds = new Set(state.projectiles.map(p => p.id));
-
-  // Remove stale
+  const serverIds = new Set(state.projectiles.map(p => p.id));
   Object.keys(projMeshes).forEach(id => {
-    if (!serverProjIds.has(id)) {
-      scene.remove(projMeshes[id]);
-      delete projMeshes[id];
-    }
+    if (!serverIds.has(id)) { scene.remove(projMeshes[id]); delete projMeshes[id]; }
   });
-
-  // Add/update
   state.projectiles.forEach(proj => {
     if (!projMeshes[proj.id]) {
-      const mesh = createProjectileMesh(proj.spellKey);
+      const owner = state.players[proj.ownerId];
+      const spellItemId = owner ? (owner.equippedSpell || 'spell_default') : 'spell_default';
+      const mesh = createProjectileMesh(proj.spellKey, spellItemId);
       scene.add(mesh);
       projMeshes[proj.id] = mesh;
     }
     projMeshes[proj.id].position.set(proj.x, proj.y, proj.z);
-    if (proj.spellKey === 'iceshard') {
-      projMeshes[proj.id].rotation.x += 0.3;
-      projMeshes[proj.id].rotation.z += 0.2;
-    }
+    if (proj.spellKey === 'iceshard') { projMeshes[proj.id].rotation.x += 0.3; projMeshes[proj.id].rotation.z += 0.2; }
   });
 
-  // Update camera to follow me
   if (myId && state.players[myId]) {
     const me = state.players[myId];
     updateCamera(me.x, me.z, me.rotY);
@@ -500,109 +849,73 @@ function updateGameState(state) {
 }
 
 function updateCamera(px, pz, rotY) {
-  // Place camera BEHIND the player: positive offset along their facing direction
   const camX = px + Math.sin(rotY) * CAMERA_DIST;
   const camZ = pz + Math.cos(rotY) * CAMERA_DIST;
   camera.position.set(camX, CAMERA_HEIGHT, camZ);
   camera.lookAt(px, 1.5, pz);
 }
 
-// ── HP / HUD updates ────────────────────────────────────────
 function updateMyHP(hp) {
   const pct = Math.max(0, hp) / 100;
-  document.getElementById('hud-hp-you').style.width = (pct * 100) + '%';
-  document.getElementById('hud-hp-text-you').textContent = Math.max(0, hp) + ' HP';
+  document.getElementById('hud-hp-you').style.width = (pct*100)+'%';
+  document.getElementById('hud-hp-text-you').textContent = Math.max(0,hp)+' HP';
   const bar = document.getElementById('hud-hp-you');
-  bar.style.background = pct > 0.5
-    ? 'linear-gradient(90deg,#22cc44,#44ff66)'
-    : pct > 0.25
-      ? 'linear-gradient(90deg,#cc8800,#ffaa00)'
-      : 'linear-gradient(90deg,#cc2200,#ff4400)';
+  bar.style.background = pct > 0.5 ? 'linear-gradient(90deg,#22cc44,#44ff66)' : pct > 0.25 ? 'linear-gradient(90deg,#cc8800,#ffaa00)' : 'linear-gradient(90deg,#cc2200,#ff4400)';
 }
 
 function updateOppHP(hp) {
   const pct = Math.max(0, hp) / 100;
-  document.getElementById('hud-hp-opp').style.width = (pct * 100) + '%';
-  document.getElementById('hud-hp-text-opp').textContent = Math.max(0, hp) + ' HP';
+  document.getElementById('hud-hp-opp').style.width = (pct*100)+'%';
+  document.getElementById('hud-hp-text-opp').textContent = Math.max(0,hp)+' HP';
 }
 
-// ── Hit flash ───────────────────────────────────────────────
 function flashHit() {
   const el = document.getElementById('hit-flash');
-  el.classList.remove('flash');
-  void el.offsetWidth;
-  el.classList.add('flash');
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
 
-// ── Stun indicator ──────────────────────────────────────────
 function showStun() {
   const el = document.getElementById('stun-indicator');
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 900);
 }
 
-// ── Cooldown UI ─────────────────────────────────────────────
-const SPELL_SLOT_IDS = { fireball: 'spell-1', iceshard: 'spell-2', thunder: 'spell-3', shield: 'spell-4' };
-
 function triggerCooldownUI(spellKey) {
   const slotId = SPELL_SLOT_IDS[spellKey];
   const slot = document.getElementById(slotId);
   if (!slot) return;
-
   slot.classList.add('on-cooldown');
   const duration = COOLDOWNS[spellKey];
   const overlay = document.getElementById('cd-' + spellKey);
   const start = Date.now();
-
   const tick = () => {
-    const elapsed = Date.now() - start;
-    const pct = Math.min(1, elapsed / duration);
-    overlay.style.transform = `scaleY(${1 - pct})`;
-    if (pct < 1) {
-      requestAnimationFrame(tick);
-    } else {
-      slot.classList.remove('on-cooldown');
-      overlay.style.transform = 'scaleY(0)';
-    }
+    const pct = Math.min(1, (Date.now()-start)/duration);
+    overlay.style.transform = `scaleY(${1-pct})`;
+    if (pct < 1) requestAnimationFrame(tick);
+    else { slot.classList.remove('on-cooldown'); overlay.style.transform = 'scaleY(0)'; }
   };
   requestAnimationFrame(tick);
 }
 
-// ── Input ───────────────────────────────────────────────────
-let inputInterval = null;
-
+// ── Input ────────────────────────────────────────────
 function setupInputListeners() {
   document.addEventListener('keydown', onKeyDown);
-  document.addEventListener('keyup',   onKeyUp);
-  document.getElementById('game-canvas').addEventListener('click', requestPointerLock);
-  document.addEventListener('pointerlockchange', onPointerLockChange);
+  document.addEventListener('keyup', onKeyUp);
+  document.getElementById('game-canvas').addEventListener('click', () => document.getElementById('game-canvas').requestPointerLock());
+  document.addEventListener('pointerlockchange', () => { pointerLocked = document.pointerLockElement === document.getElementById('game-canvas'); });
   document.addEventListener('mousemove', onMouseMove);
-
-  // Send input to server at 20hz
   if (inputInterval) clearInterval(inputInterval);
   inputInterval = setInterval(sendInput, 50);
 }
 
 function removeInputListeners() {
   document.removeEventListener('keydown', onKeyDown);
-  document.removeEventListener('keyup',   onKeyUp);
-  document.removeEventListener('pointerlockchange', onPointerLockChange);
+  document.removeEventListener('keyup', onKeyUp);
   document.removeEventListener('mousemove', onMouseMove);
   if (inputInterval) { clearInterval(inputInterval); inputInterval = null; }
 }
 
-function requestPointerLock() {
-  document.getElementById('game-canvas').requestPointerLock();
-}
-
-function onPointerLockChange() {
-  pointerLocked = document.pointerLockElement === document.getElementById('game-canvas');
-}
-
-function onMouseMove(e) {
-  if (!pointerLocked) return;
-  mouseX += e.movementX * 0.003;
-}
+function onMouseMove(e) { if (pointerLocked) mouseX += e.movementX * 0.003; }
 
 function onKeyDown(e) {
   keys[e.code] = true;
@@ -621,22 +934,17 @@ function onKeyUp(e) { keys[e.code] = false; }
 
 function sendInput() {
   if (!socket || !gameRunning) return;
-
   let dx = 0, dz = 0;
   if (keys['KeyW'] || keys['ArrowUp'])    dz -= 1;
   if (keys['KeyS'] || keys['ArrowDown'])  dz += 1;
   if (keys['KeyA'] || keys['ArrowLeft'])  dx -= 1;
   if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
-
-  // Rotate movement relative to player facing direction
   const angle = mouseX;
   const rdx =  dx * Math.cos(angle) + dz * Math.sin(angle);
   const rdz = -dx * Math.sin(angle) + dz * Math.cos(angle);
-
   socket.emit('playerInput', { dx: rdx, dz: rdz, rotY: mouseX });
 }
 
-// ── Render loop ─────────────────────────────────────────────
 function renderLoop() {
   if (!gameRunning) return;
   animFrameId = requestAnimationFrame(renderLoop);
@@ -650,8 +958,8 @@ function onResize() {
   camera.updateProjectionMatrix();
 }
 
-// ── Game Over ───────────────────────────────────────────────
-function endGame(iWon, winnerName, disconnected = false) {
+// ── Game over ────────────────────────────────────────
+function endGame(iWon, winnerName, disconnected, coinsEarned) {
   gameRunning = false;
   removeInputListeners();
   cancelAnimationFrame(animFrameId);
@@ -659,59 +967,95 @@ function endGame(iWon, winnerName, disconnected = false) {
   document.getElementById('gameover-icon').textContent  = iWon ? '🏆' : '💀';
   document.getElementById('gameover-title').textContent = iWon ? 'YOU WIN!' : 'DEFEATED!';
 
-  let sub = '';
-  if (disconnected) sub = 'Opponent disconnected — Victory by default!';
-  else if (iWon)    sub = `You defeated ${winnerName}!`;
-  else              sub = `${winnerName} wins this round.`;
-
+  let sub = disconnected ? 'Opponent disconnected — Victory!' : iWon ? `You defeated ${winnerName}!` : `${winnerName} wins this round.`;
   document.getElementById('gameover-sub').textContent = sub;
+
+  if (coinsEarned > 0) {
+    document.getElementById('gameover-coins').textContent = `+🪙 ${coinsEarned} coins earned!`;
+  } else {
+    document.getElementById('gameover-coins').textContent = '';
+  }
+
   showScreen('screen-gameover');
 }
 
-// ─── Floating text (unused but available) ──────────────────
-function showFloatingText(text, mesh) {
-  // Could use a 2D canvas overlay — kept simple for now
-  console.log(`[Effect] ${text}`);
+// ══════════════════════════════════════════════════════
+//  API HELPER
+// ══════════════════════════════════════════════════════
+async function apiFetch(url, method, body) {
+  try {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken }
+    };
+    if (body && method !== 'GET') opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (!res.ok) {
+      const msgEl = document.getElementById('friend-msg');
+      if (msgEl) { msgEl.textContent = data.error || 'Error.'; msgEl.className = 'friend-msg error'; msgEl.classList.remove('hidden'); }
+      return null;
+    }
+    return data;
+  } catch { return null; }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  BUTTON BINDINGS
-// ═══════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  spawnParticles();
+// ══════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  spawnParticles('particles');
 
-  document.getElementById('btn-start-game').addEventListener('click', () => {
-    showScreen('screen-auth');
-  });
-
-  document.getElementById('btn-back-menu').addEventListener('click', () => {
-    showScreen('screen-menu');
-  });
-
+  // Auth screen
   document.getElementById('btn-auth-submit').addEventListener('click', doAuth);
+  document.getElementById('auth-password').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(); });
+  document.getElementById('btn-logout').addEventListener('click', logout);
 
-  document.getElementById('auth-password').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doAuth();
-  });
-
+  // Play button → queue
+  document.getElementById('btn-play-game').addEventListener('click', joinQueue);
   document.getElementById('btn-leave-lobby').addEventListener('click', () => {
-    if (socket) socket.disconnect();
-    showScreen('screen-menu');
+    if (socket) socket.emit('leaveQueue');
+    enterMainMenu();
   });
 
+  // Friends
+  document.getElementById('btn-send-request').addEventListener('click', sendFriendRequest);
+  document.getElementById('friend-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendFriendRequest(); });
+
+  // Invite toast
+  document.getElementById('btn-accept-invite').addEventListener('click', () => {
+    if (!pendingInviteFrom) return;
+    socket.emit('acceptInvite', { fromUsername: pendingInviteFrom });
+    document.getElementById('invite-toast').classList.add('hidden');
+    showScreen('screen-lobby');
+    document.getElementById('lobby-msg').textContent = 'Connecting to match...';
+    pendingInviteFrom = null;
+  });
+  document.getElementById('btn-decline-invite').addEventListener('click', () => {
+    if (pendingInviteFrom) socket.emit('declineInvite', { fromUsername: pendingInviteFrom });
+    document.getElementById('invite-toast').classList.add('hidden');
+    pendingInviteFrom = null;
+  });
+
+  // Game over buttons
   document.getElementById('btn-play-again').addEventListener('click', () => {
-    // Clean up scene
     if (renderer) {
       Object.values(playerMeshes).forEach(m => scene.remove(m));
       Object.values(projMeshes).forEach(m => scene.remove(m));
-      playerMeshes = {};
-      projMeshes = {};
+      playerMeshes = {}; projMeshes = {};
     }
-    joinLobby();
+    joinQueue();
+  });
+  document.getElementById('btn-gameover-menu').addEventListener('click', () => {
+    if (renderer) {
+      Object.values(playerMeshes).forEach(m => scene.remove(m));
+      Object.values(projMeshes).forEach(m => scene.remove(m));
+      playerMeshes = {}; projMeshes = {};
+    }
+    enterMainMenu();
   });
 
-  document.getElementById('btn-gameover-menu').addEventListener('click', () => {
-    if (socket) socket.disconnect();
-    showScreen('screen-menu');
-  });
+  // Try auto-login from saved token
+  const loggedIn = await tryAutoLogin();
+  if (!loggedIn) showScreen('screen-splash');
 });
