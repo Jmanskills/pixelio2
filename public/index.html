@@ -74,6 +74,9 @@
       <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
         <span class="nav-icon">📰</span><span class="nav-label">News</span>
       </button>
+      <button class="menu-nav-btn" id="nav-profile" onclick="menuNav('profile')">
+        <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+      </button>
       <button class="menu-nav-btn" id="nav-admin" onclick="menuNav('admin')" style="display:none">
         <span class="nav-icon">🛡️</span><span class="nav-label">Admin</span>
       </button>
@@ -105,6 +108,9 @@
           </div>
         </div>
         <div class="play-hint">Earn <span class="gold-text">🪙 50 coins</span> per win · <span class="gold-text">10 coins</span> per match</div>
+        <button class="btn-practice" id="btn-practice-game">
+          🤖 Practice vs Bot
+        </button>
       </div>
     </div>
 
@@ -141,6 +147,46 @@
         <div class="shop-balance">🪙 <span id="shop-coins">0</span></div>
       </div>
       <div id="shop-items-grid" class="shop-grid"></div>
+    </div>
+
+    <!-- PROFILE PANEL -->
+    <div class="menu-panel" id="panel-profile">
+      <div class="profile-wrap">
+        <!-- Own profile card -->
+        <div class="profile-card" id="my-profile-card">
+          <div class="profile-avatar-wrap">
+            <canvas id="profile-avatar-canvas" width="120" height="160"></canvas>
+            <div class="profile-avatar-label" id="profile-avatar-label"></div>
+          </div>
+          <div class="profile-info">
+            <div class="profile-username" id="profile-username-display"></div>
+            <div class="profile-title-badge" id="profile-title-display"></div>
+            <div class="profile-bio-wrap">
+              <textarea class="profile-bio-input" id="profile-bio-input" placeholder="Write a short bio..." maxlength="150"></textarea>
+              <button class="btn-small" id="btn-save-bio">Save Bio</button>
+            </div>
+            <div class="profile-stats-row">
+              <div class="stat-box"><div class="stat-val" id="prof-wins">0</div><div class="stat-lbl">Wins</div></div>
+              <div class="stat-box"><div class="stat-val" id="prof-losses">0</div><div class="stat-lbl">Losses</div></div>
+              <div class="stat-box"><div class="stat-val" id="prof-coins">0</div><div class="stat-lbl">Coins</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Avatar picker -->
+        <div class="profile-avatar-section">
+          <div class="profile-section-title">Choose Your Wizard Avatar</div>
+          <div class="avatar-grid" id="avatar-grid"></div>
+        </div>
+        <!-- Look up other player -->
+        <div class="profile-lookup-section">
+          <div class="profile-section-title">Look Up Player</div>
+          <div class="profile-lookup-row">
+            <input class="auth-input" id="profile-lookup-input" placeholder="Enter username..." maxlength="20"/>
+            <button class="btn-small" id="btn-lookup-profile">Search</button>
+          </div>
+          <div id="profile-lookup-result" class="profile-lookup-result hidden"></div>
+        </div>
+      </div>
     </div>
 
     <!-- NEWS PANEL -->

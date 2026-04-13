@@ -256,6 +256,86 @@ function setupGameSockets(io) {
       }
     });
 
+    // ── PRACTICE MODE: solo match vs AI bot ──────────
+    socket.on('startPractice', ({ username, cosmetics }) => {
+      socket.username = username;
+      socket.cosmetics = cosmetics || {};
+      onlineUsers[username] = socket.id;
+
+      const roomId = `practice_${socket.id}`;
+      const botId  = `bot_${socket.id}`;
+
+      const state = {
+        roomId, isPractice: true, started: true, winner: null,
+        players: {
+          [socket.id]: createPlayerState(socket.id, username, -8, 0, cosmetics),
+          [botId]:     createPlayerState(botId, 'Training Bot', 8, 0, {})
+        },
+        projectiles: []
+      };
+
+      rooms[roomId] = state;
+      socket.roomId = roomId;
+      socket.join(roomId);
+
+      const playerList = Object.values(state.players).map(p => ({
+        id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
+        equippedRobe: p.equippedRobe, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
+      }));
+
+      socket.emit('matchFound', { roomId, players: playerList });
+      socket.emit('yourId', socket.id);
+
+      // Bot AI tick
+      let botAngle = 0;
+      let botCooldown = 0;
+      const interval = setInterval(async () => {
+        const r = rooms[roomId];
+        if (!r || r.winner) { clearInterval(interval); return; }
+
+        // Bot movement — orbit the center
+        botAngle += 0.02;
+        const bot = r.players[botId];
+        const player = r.players[socket.id];
+        if (bot && bot.alive) {
+          // Move bot toward player with some lag
+          const dx = player.x - bot.x;
+          const dz = player.z - bot.z;
+          const dist = Math.sqrt(dx*dx + dz*dz);
+          if (dist > 5) {
+            bot.x += (dx / dist) * PLAYER_SPEED * 0.6;
+            bot.z += (dz / dist) * PLAYER_SPEED * 0.6;
+          }
+          // Bot faces player
+          bot.rotY = Math.atan2(-(player.x - bot.x), -(player.z - bot.z));
+
+          // Bot fires at player every ~2 seconds
+          const now = Date.now();
+          if (now > botCooldown && dist < 18) {
+            botCooldown = now + 1800 + Math.random() * 1200;
+            const spells = ['fireball','iceshard','thunder'];
+            const spell = spells[Math.floor(Math.random()*spells.length)];
+            const s = SPELLS[spell];
+            const dir = { x: player.x - bot.x, z: player.z - bot.z };
+            const len = Math.sqrt(dir.x*dir.x + dir.z*dir.z);
+            r.projectiles.push({
+              id: `botproj_${Date.now()}_${Math.random()}`,
+              ownerId: botId, spellKey: spell,
+              x: bot.x, y: 1.0, z: bot.z,
+              dirX: dir.x/len, dirZ: dir.z/len,
+              speed: s.speed, damage: s.damage, stun: s.stun || 0,
+              color: s.color, radius: s.radius, born: now
+            });
+          }
+        }
+
+        await tickRoom(r, io);
+        io.to(roomId).emit('gameState', { players: r.players, projectiles: r.projectiles });
+      }, 50);
+
+      state.interval = interval;
+    });
+
     socket.on('playerInput', ({ dx, dz, rotY }) => {
       const room = rooms[socket.roomId];
       if (!room) return;

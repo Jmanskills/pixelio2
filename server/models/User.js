@@ -23,6 +23,8 @@ const userSchema = new mongoose.Schema({
   friends:        { type: [String], default: [] },
   friendRequests: { type: [String], default: [] },
 
+  avatar: { type: String, default: 'wizard1' }, // avatar id
+  bio: { type: String, default: '', maxlength: 150 },
   isAdmin: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false },
   banReason: { type: String, default: '' },
@@ -51,6 +53,8 @@ userSchema.methods.safeProfile = function () {
     equippedTitle: this.equippedTitle,
     friends: this.friends,
     friendRequests: this.friendRequests,
+    avatar: this.avatar,
+    bio: this.bio,
     isAdmin: this.isAdmin,
     isBanned: this.isBanned
   };

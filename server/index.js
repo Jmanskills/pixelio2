@@ -9,7 +9,8 @@ const path = require('path');
 const authRoutes   = require('./routes/auth');
 const shopRoutes   = require('./routes/shop');
 const friendRoutes = require('./routes/friends');
-const adminRoutes  = require('./routes/admin');
+const adminRoutes   = require('./routes/admin');
+const profileRoutes = require('./routes/profile');
 const { setupGameSockets } = require('./game');
 const User = require('./models/User');
 
@@ -17,10 +18,11 @@ const User = require('./models/User');
 //  ADMIN USERNAMES — add usernames here to grant
 //  admin access automatically on server start.
 // ══════════════════════════════════════════════════
-const ADMIN_USERNAMES = [
-  'Jmanskills'
-  // Add more admins here: 'otheradmin', 'etc'
-];
+// ─────────────────────────────────────────────────────
+// ADD ADMIN USERNAMES HERE (case-insensitive)
+// ─────────────────────────────────────────────────────
+const ADMIN_USERNAMES = ['jmanskills'];
+// ─────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════
 
 const app = express();
@@ -35,6 +37,7 @@ app.use('/api/auth',    authRoutes);
 app.use('/api/shop',    shopRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/admin',   adminRoutes);
+app.use('/api/profile', profileRoutes);
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
@@ -49,13 +52,14 @@ mongoose.connect(MONGO_URI)
     console.log('Connected to MongoDB');
 
     // Auto-promote admin usernames
-    for (const username of ADMIN_USERNAMES) {
+    // Promote admins case-insensitively
+    for (const adminName of ADMIN_USERNAMES) {
       const result = await User.findOneAndUpdate(
-        { username },
+        { username: { $regex: new RegExp('^' + adminName + '$', 'i') } },
         { isAdmin: true },
-        { new: false }
+        { new: true }
       );
-      if (result) console.log(`✅ Admin promoted: ${username}`);
+      if (result) console.log(`✅ Admin promoted: ${result.username}`);
     }
 
     server.listen(PORT, () => console.log(`Pixelio server running on port ${PORT}`));

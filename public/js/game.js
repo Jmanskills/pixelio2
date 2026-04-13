@@ -124,8 +124,11 @@ function enterMainMenu() {
 function refreshAdminVisibility() {
   const adminBtn = document.getElementById('nav-admin');
   if (!adminBtn) return;
-  // Use inline style directly — no class system involved
-  adminBtn.style.display = (profile && profile.isAdmin) ? 'flex' : 'none';
+  const isAdmin = !!(profile && profile.isAdmin);
+  console.log('[Admin] isAdmin:', isAdmin, 'username:', profile && profile.username);
+  adminBtn.style.cssText = isAdmin
+    ? 'display:flex!important;visibility:visible!important;opacity:1!important'
+    : 'display:none!important';
 }
 
 function updateMenuUI() {
@@ -172,6 +175,7 @@ function menuNav(tab) {
   if (tab === 'friends') loadFriends();
   if (tab === 'news')    loadNews();
   if (tab === 'admin')   adminTab('users');
+  if (tab === 'profile') loadProfilePanel();
 }
 
 // ── Mini wizard preview canvas ───────────────────────
@@ -855,6 +859,8 @@ function blendColors(c1, c2, t) {
 
 // ── Start game ───────────────────────────────────────
 function startGame(players) {
+  _gameOverShown = false;   // reset for new match
+  hideGameOver();           // ensure gameover overlay is hidden
   showScreen('screen-game');
   gameRunning = true;
 
@@ -1101,31 +1107,26 @@ let _gameOverShown = false;
 
 function showGameOver() {
   _gameOverShown = true;
-  // CRITICAL: Hide screen-game FIRST — WebGL canvas has its own GPU compositing
-  // layer that renders above all CSS z-index, including z-index:9999.
-  // The only fix is to remove the canvas from the DOM flow entirely.
-  const gameScreen = document.getElementById('screen-game');
-  if (gameScreen) {
-    gameScreen.classList.remove('active');
-    gameScreen.style.setProperty('display', 'none', 'important');
-  }
-  // Now show the gameover overlay
-  const el = document.getElementById('screen-gameover');
-  el.style.setProperty('display', 'flex', 'important');
+  // Stop the render loop immediately
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  // CRITICAL: Hide game screen — WebGL canvas compositing layer ignores z-index
+  const gs = document.getElementById('screen-game');
+  if (gs) gs.style.cssText = 'display:none!important';
+  // Show gameover with maximum specificity
+  const go = document.getElementById('screen-gameover');
+  go.style.cssText = 'display:flex!important;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#08051a;';
 }
 
 function hideGameOver() {
   _gameOverShown = false;
-  const el = document.getElementById('screen-gameover');
-  el.style.removeProperty('display');
-  el.style.display = 'none';
-  // Restore game screen to CSS control
-  const gameScreen = document.getElementById('screen-game');
-  if (gameScreen) { gameScreen.style.removeProperty('display'); }
+  const go = document.getElementById('screen-gameover');
+  go.style.cssText = 'display:none';
+  const gs = document.getElementById('screen-game');
+  if (gs) gs.style.cssText = '';
 }
 
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
-  if (_gameOverShown) return;
+  if (_gameOverShown) return; // already showing
 
   gameRunning = false;
   removeInputListeners();
@@ -1145,12 +1146,7 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   document.getElementById('gameover-sub').textContent   = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Show overlay FIRST so it's visible immediately
   showGameOver();
-
-  // Stop render loop AFTER overlay is shown
-  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
-  gameOverFrames = null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -1688,6 +1684,236 @@ function showAdminMsg(msg) {
   setTimeout(() => el.classList.add('hidden'), 4000);
 }
 
+// ═══════════════════════════════════════════════════
+//  PROFILE SYSTEM
+// ═══════════════════════════════════════════════════
+
+const AVATARS = [
+  { id: 'wizard1',  emoji: '🧙', label: 'Classic Wizard',  robeColor: '#6a0dad' },
+  { id: 'wizard2',  emoji: '🧙', label: 'Crimson Mage',    robeColor: '#cc1122' },
+  { id: 'wizard3',  emoji: '🧙', label: 'Ocean Sorcerer',  robeColor: '#0066cc' },
+  { id: 'wizard4',  emoji: '🧙', label: 'Forest Druid',    robeColor: '#1a7a2a' },
+  { id: 'wizard5',  emoji: '🧙', label: 'Golden Archmage', robeColor: '#d4a017' },
+  { id: 'wizard6',  emoji: '🧙', label: 'Shadow Warlock',  robeColor: '#1a1a2e' },
+  { id: 'wizard7',  emoji: '🔮', label: 'Crystal Seer',    robeColor: '#88ddff' },
+  { id: 'wizard8',  emoji: '⚡', label: 'Storm Caller',    robeColor: '#ffee00' },
+  { id: 'wizard9',  emoji: '🔥', label: 'Fire Sage',       robeColor: '#ff4400' },
+  { id: 'wizard10', emoji: '❄️', label: 'Frost Witch',     robeColor: '#88ccff' },
+  { id: 'wizard11', emoji: '🌿', label: 'Nature Shaman',   robeColor: '#44aa44' },
+  { id: 'wizard12', emoji: '💀', label: 'Death Mage',      robeColor: '#330033' },
+];
+
+function loadProfilePanel() {
+  if (!profile) return;
+  // Populate own profile
+  document.getElementById('profile-username-display').textContent = profile.username;
+  const titleItem = shopCatalog.find(i => i.id === profile.equippedTitle);
+  document.getElementById('profile-title-display').textContent = titleItem ? titleItem.name : 'Wizard';
+  document.getElementById('profile-bio-input').value = profile.bio || '';
+  document.getElementById('prof-wins').textContent = profile.wins;
+  document.getElementById('prof-losses').textContent = profile.losses;
+  document.getElementById('prof-coins').textContent = profile.coins;
+
+  // Draw avatar canvas
+  drawProfileAvatar('profile-avatar-canvas', profile.avatar || 'wizard1', 120, 160);
+  const av = AVATARS.find(a => a.id === (profile.avatar || 'wizard1'));
+  document.getElementById('profile-avatar-label').textContent = av ? av.label : '';
+
+  // Build avatar picker grid
+  buildAvatarGrid();
+}
+
+function buildAvatarGrid() {
+  const grid = document.getElementById('avatar-grid');
+  grid.innerHTML = '';
+  AVATARS.forEach(av => {
+    const card = document.createElement('div');
+    card.className = 'avatar-option' + (profile.avatar === av.id ? ' selected' : '');
+    card.title = av.label;
+    card.onclick = () => selectAvatar(av.id);
+
+    const cvs = document.createElement('canvas');
+    cvs.width = 60; cvs.height = 80;
+    card.appendChild(cvs);
+    drawProfileAvatar(cvs, av.id, 60, 80);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'avatar-option-label';
+    lbl.textContent = av.label;
+    card.appendChild(lbl);
+
+    grid.appendChild(card);
+  });
+}
+
+function drawProfileAvatar(canvasOrId, avatarId, w, h) {
+  const canvas = typeof canvasOrId === 'string' ? document.getElementById(canvasOrId) : canvasOrId;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const av = AVATARS.find(a => a.id === avatarId) || AVATARS[0];
+  ctx.clearRect(0, 0, w, h);
+
+  // Background glow
+  const grd = ctx.createRadialGradient(w/2, h*0.6, 5, w/2, h*0.6, w*0.6);
+  grd.addColorStop(0, av.robeColor + '55');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, w, h);
+
+  const s = w / 120; // scale factor
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(w/2, h - 10*s, 22*s, 6*s, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Robe
+  ctx.fillStyle = av.robeColor;
+  ctx.beginPath();
+  ctx.moveTo(w/2 - 18*s, h - 18*s);
+  ctx.lineTo(w/2 + 18*s, h - 18*s);
+  ctx.lineTo(w/2 + 22*s, h - 18*s);
+  ctx.lineTo(w/2 + 19*s, h - 65*s);
+  ctx.lineTo(w/2 - 19*s, h - 65*s);
+  ctx.lineTo(w/2 - 22*s, h - 18*s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Robe shading
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(w/2, h - 18*s);
+  ctx.lineTo(w/2 + 22*s, h - 18*s);
+  ctx.lineTo(w/2 + 19*s, h - 65*s);
+  ctx.lineTo(w/2, h - 65*s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f5d5a0';
+  ctx.beginPath();
+  ctx.arc(w/2, h - 78*s, 13*s, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hat brim
+  ctx.fillStyle = '#111122';
+  ctx.beginPath();
+  ctx.ellipse(w/2, h - 88*s, 18*s, 5*s, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hat cone
+  ctx.fillStyle = '#111122';
+  ctx.beginPath();
+  ctx.moveTo(w/2 - 13*s, h - 88*s);
+  ctx.lineTo(w/2 + 13*s, h - 88*s);
+  ctx.lineTo(w/2, h - 120*s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Emoji badge if special avatar
+  if (av.emoji !== '🧙') {
+    ctx.font = `${14*s}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(av.emoji, w/2, h - 98*s);
+  } else {
+    // Star on hat
+    ctx.fillStyle = av.robeColor;
+    ctx.font = `${10*s}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('★', w/2, h - 102*s);
+  }
+}
+
+async function selectAvatar(avatarId) {
+  const res = await apiFetch('/api/profile', 'PATCH', { avatar: avatarId });
+  if (!res) return;
+  profile = res.profile;
+  loadProfilePanel();
+  renderPreviewCanvas();
+  updateMenuUI();
+}
+
+async function saveBio() {
+  const bio = document.getElementById('profile-bio-input').value.trim();
+  const res = await apiFetch('/api/profile', 'PATCH', { bio });
+  if (res) {
+    profile = res.profile;
+    showReportConfirmation('Bio saved!');
+  }
+}
+
+async function lookupProfile() {
+  const username = document.getElementById('profile-lookup-input').value.trim();
+  if (!username) return;
+  const resultEl = document.getElementById('profile-lookup-result');
+  resultEl.innerHTML = '<div style="color:var(--gray);font-size:.85rem">Searching...</div>';
+  resultEl.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
+    const data = await res.json();
+    if (!res.ok) { resultEl.innerHTML = `<div class="profile-lookup-empty">${data.error}</div>`; return; }
+
+    const titleItem = shopCatalog.find(i => i.id === data.equippedTitle);
+    const titleName = titleItem ? titleItem.name : 'Wizard';
+    const wr = data.wins + data.losses > 0
+      ? Math.round(data.wins / (data.wins + data.losses) * 100) + '%'
+      : '—';
+    const av = AVATARS.find(a => a.id === (data.avatar || 'wizard1')) || AVATARS[0];
+
+    resultEl.innerHTML = `
+      <div class="looked-up-card">
+        <div class="looked-up-avatar" id="looked-up-canvas-wrap"></div>
+        <div class="looked-up-info">
+          <div class="looked-up-name">
+            ${escHtml(data.username)}
+            ${data.isAdmin ? '<span class="tag tag-admin">Admin</span>' : ''}
+          </div>
+          <div class="looked-up-title">${escHtml(titleName)}</div>
+          ${data.bio ? `<div class="looked-up-bio">"${escHtml(data.bio)}"</div>` : ''}
+          <div class="looked-up-stats">
+            <span>🏆 ${data.wins}W</span>
+            <span>💀 ${data.losses}L</span>
+            <span>📊 ${wr}</span>
+          </div>
+          <div class="looked-up-since">Member since ${new Date(data.createdAt).toLocaleDateString()}</div>
+        </div>
+      </div>`;
+
+    // Draw avatar canvas
+    const wrap = document.getElementById('looked-up-canvas-wrap');
+    const cvs = document.createElement('canvas');
+    cvs.width = 80; cvs.height = 106;
+    wrap.appendChild(cvs);
+    drawProfileAvatar(cvs, data.avatar || 'wizard1', 80, 106);
+  } catch { resultEl.innerHTML = '<div class="profile-lookup-empty">Error looking up player.</div>'; }
+}
+
+// ═══════════════════════════════════════════════════
+//  PRACTICE MODE
+// ═══════════════════════════════════════════════════
+function startPractice() {
+  if (!socket) connectSocket();
+  document.getElementById('lobby-username').textContent = profile.username;
+  showScreen('screen-lobby');
+  document.getElementById('lobby-title').textContent = '🤖 Starting Practice...';
+  document.getElementById('lobby-msg').textContent = 'Setting up your training match...';
+
+  // Small delay to let socket connect if needed
+  setTimeout(() => {
+    socket.emit('startPractice', {
+      username: profile.username,
+      token: authToken,
+      cosmetics: {
+        equippedRobe: profile.equippedRobe,
+        equippedSpell: profile.equippedSpell,
+        equippedTitle: profile.equippedTitle
+      }
+    });
+  }, 300);
+}
+
 // ══════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════
@@ -1701,8 +1927,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Play button → queue
   document.getElementById('btn-play-game').addEventListener('click', joinQueue);
+  document.getElementById('btn-practice-game').addEventListener('click', startPractice);
   document.getElementById('btn-leave-lobby').addEventListener('click', () => {
     if (socket) socket.emit('leaveQueue');
+    document.getElementById('lobby-title').textContent = '⚔️ Finding Opponent...';
     enterMainMenu();
   });
 
@@ -1715,6 +1943,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Friends
   document.getElementById('btn-send-request').addEventListener('click', sendFriendRequest);
+  document.getElementById('btn-save-bio').addEventListener('click', saveBio);
+  document.getElementById('btn-lookup-profile').addEventListener('click', lookupProfile);
+  document.getElementById('profile-lookup-input').addEventListener('keydown', e => { if (e.key === 'Enter') lookupProfile(); });
   document.getElementById('friend-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendFriendRequest(); });
 
   // Invite toast
