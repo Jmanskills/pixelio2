@@ -71,6 +71,12 @@
       <button class="menu-nav-btn" id="nav-shop" onclick="menuNav('shop')">
         <span class="nav-icon">🛍️</span><span class="nav-label">Shop</span>
       </button>
+      <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
+        <span class="nav-icon">📰</span><span class="nav-label">News</span>
+      </button>
+      <button class="menu-nav-btn hidden" id="nav-admin" onclick="menuNav('admin')">
+        <span class="nav-icon">🛡️</span><span class="nav-label">Admin</span>
+      </button>
     </div>
 
     <!-- PLAY PANEL -->
@@ -136,6 +142,72 @@
       </div>
       <div id="shop-items-grid" class="shop-grid"></div>
     </div>
+
+    <!-- NEWS PANEL -->
+    <div class="menu-panel" id="panel-news">
+      <div class="news-header">
+        <div class="news-title-bar">📰 News &amp; Updates</div>
+      </div>
+      <div id="news-list" class="news-list">
+        <div class="news-loading">Loading news...</div>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div class="menu-panel" id="panel-admin">
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="adminTab('users')">👥 Users</button>
+        <button class="admin-tab" onclick="adminTab('reports')">🚩 Reports</button>
+        <button class="admin-tab" onclick="adminTab('news')">📰 News</button>
+        <button class="admin-tab" onclick="adminTab('give')">🎁 Give Items</button>
+      </div>
+
+      <!-- USERS TAB -->
+      <div class="admin-panel active" id="admin-panel-users">
+        <div class="admin-search-row">
+          <input class="auth-input" id="admin-user-search" placeholder="Search username..." />
+          <button class="btn-small" onclick="adminSearchUsers()">Search</button>
+        </div>
+        <div id="admin-users-list" class="admin-list"></div>
+      </div>
+
+      <!-- REPORTS TAB -->
+      <div class="admin-panel" id="admin-panel-reports">
+        <button class="btn-small" onclick="adminLoadReports()" style="margin-bottom:12px">🔄 Refresh Reports</button>
+        <div id="admin-reports-list" class="admin-list"></div>
+      </div>
+
+      <!-- NEWS TAB -->
+      <div class="admin-panel" id="admin-panel-news">
+        <div class="admin-form">
+          <input class="auth-input" id="admin-news-title" placeholder="News title..." />
+          <textarea class="modal-textarea" id="admin-news-body" placeholder="News content..." style="min-height:100px"></textarea>
+          <label style="display:flex;align-items:center;gap:8px;color:var(--gray);font-size:.85rem;">
+            <input type="checkbox" id="admin-news-pinned"/> 📌 Pin this post
+          </label>
+          <button class="btn-primary" onclick="adminPostNews()" style="align-self:flex-start">Post News</button>
+        </div>
+        <div id="admin-news-list" class="admin-list" style="margin-top:16px"></div>
+      </div>
+
+      <!-- GIVE ITEMS TAB -->
+      <div class="admin-panel" id="admin-panel-give">
+        <div class="admin-form">
+          <input class="auth-input" id="admin-give-username" placeholder="Target username..." />
+          <select class="modal-select" id="admin-give-item">
+            <option value="">— Select item to give —</option>
+          </select>
+          <button class="btn-primary" onclick="adminGiveItem()" style="align-self:flex-start">🎁 Give Item</button>
+        </div>
+        <div class="admin-form" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <input class="auth-input" id="admin-coins-username" placeholder="Target username..." />
+          <input class="auth-input" id="admin-coins-amount" type="number" placeholder="Coins amount..." min="1" />
+          <button class="btn-primary" onclick="adminGiveCoins()" style="align-self:flex-start">🪙 Give Coins</button>
+        </div>
+        <div id="admin-give-msg" class="friend-msg hidden" style="margin-top:12px"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -201,6 +273,7 @@
   <div id="game-action-btns">
     <button class="game-btn game-btn-report" id="btn-report-player" title="Report opponent">🚩 Report</button>
     <button class="game-btn game-btn-quit"   id="btn-quit-match"   title="Quit match">🚪 Quit</button>
+    <button class="game-btn game-btn-aimbot hidden" id="admin-aimbot-btn" onclick="toggleAimbot()">🎯 Aimbot: OFF</button>
   </div>
 
   <!-- Report confirmation toast -->
@@ -235,7 +308,7 @@
   </div>
 
 <!-- ══════════ GAME OVER ══════════ -->
-<div id="screen-gameover" class="screen">
+<div id="screen-gameover">
   <div class="gameover-box">
     <div class="gameover-icon" id="gameover-icon">🏆</div>
     <div class="gameover-title" id="gameover-title">YOU WIN!</div>

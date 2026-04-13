@@ -116,6 +116,10 @@ function enterMainMenu() {
   menuNav('play');
   connectSocket();
   loadFriends();
+  loadNews();
+  // Show admin nav button if admin
+  const adminBtn = document.getElementById('nav-admin');
+  if (adminBtn) adminBtn.classList.toggle('hidden', !profile.isAdmin);
 }
 
 function updateMenuUI() {
@@ -154,10 +158,14 @@ function hexToCSS(hex) {
 function menuNav(tab) {
   document.querySelectorAll('.menu-nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.menu-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('nav-' + tab).classList.add('active');
-  document.getElementById('panel-' + tab).classList.add('active');
-  if (tab === 'shop') renderShop();
+  const navBtn = document.getElementById('nav-' + tab);
+  if (navBtn) navBtn.classList.add('active');
+  const panel = document.getElementById('panel-' + tab);
+  if (panel) panel.classList.add('active');
+  if (tab === 'shop')    renderShop();
   if (tab === 'friends') loadFriends();
+  if (tab === 'news')    loadNews();
+  if (tab === 'admin')   adminTab('users');
 }
 
 // ── Mini wizard preview canvas ───────────────────────
@@ -573,6 +581,19 @@ function connectSocket() {
 
   socket.on('opponentDisconnected', () => endGame(true, profile.username, true, 50));
 
+  socket.on('kicked', ({ reason }) => {
+    gameRunning = false;
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    hideGameOver();
+    socket.disconnect();
+    socket = null;
+    alert('⚠️ ' + (reason || 'You were kicked by an admin.'));
+    showScreen('screen-splash');
+    document.getElementById('splash-auth-wrap').classList.remove('hidden');
+    document.getElementById('splash-loading').classList.add('hidden');
+    localStorage.removeItem('pixelio_token');
+  });
+
   socket.on('matchDraw', ({ quitterName }) => {
     endGame(null, null, false, 0, quitterName);
   });
@@ -861,6 +882,11 @@ function startGame(players) {
   }
 
   updateMyHP(100); updateOppHP(100);
+
+  // Show aimbot button for admins
+  aimbotEnabled = false;
+  const abBtn = document.getElementById('admin-aimbot-btn');
+  if (abBtn) abBtn.classList.toggle('hidden', !profile.isAdmin);
   setupInputListeners();
   renderLoop();
 }
@@ -981,8 +1007,54 @@ function onKeyDown(e) {
 
 function onKeyUp(e) { keys[e.code] = false; }
 
+// ── Aimbot (admin/testing) ───────────────────────────
+let aimbotEnabled = false;
+const AIMBOT_COOLDOWN = { fireball: 0, iceshard: 0, thunder: 0, shield: 0 };
+
+function toggleAimbot() {
+  aimbotEnabled = !aimbotEnabled;
+  const btn = document.getElementById('admin-aimbot-btn');
+  if (btn) btn.textContent = aimbotEnabled ? '🎯 Aimbot: ON' : '🎯 Aimbot: OFF';
+  if (btn) btn.style.background = aimbotEnabled ? '#1a7a2a' : '';
+  showReportConfirmation(aimbotEnabled ? '🎯 Aimbot enabled!' : '🎯 Aimbot disabled.');
+}
+
+function runAimbot() {
+  if (!aimbotEnabled || !gameRunning || !socket) return;
+  // Find opponent mesh position
+  const oppId = Object.keys(playerMeshes).find(id => id !== myId);
+  if (!oppId) return;
+  const opp = playerMeshes[oppId];
+  if (!opp) return;
+
+  // Get my position from last game state
+  const myMesh = playerMeshes[myId];
+  if (!myMesh) return;
+
+  // Calculate angle to opponent
+  const dx = opp.position.x - myMesh.position.x;
+  const dz = opp.position.z - myMesh.position.z;
+  const targetAngle = -Math.atan2(dx, dz);
+
+  // Smoothly rotate toward opponent
+  mouseX = mouseX + (targetAngle - mouseX) * 0.25;
+
+  // Auto-cast fastest available spell
+  const now = Date.now();
+  const spells = ['iceshard', 'thunder', 'fireball'];
+  for (const spell of spells) {
+    if ((cooldownTimers[spell] || 0) <= now) {
+      socket.emit('castSpell', { spellKey: spell });
+      cooldownTimers[spell] = now + COOLDOWNS[spell];
+      triggerCooldownUI(spell);
+      break;
+    }
+  }
+}
+
 function sendInput() {
   if (!socket || !gameRunning) return;
+  if (aimbotEnabled) runAimbot();
   let dx = 0, dz = 0;
   if (keys['KeyW'] || keys['ArrowUp'])    dz -= 1;
   if (keys['KeyS'] || keys['ArrowDown'])  dz += 1;
@@ -1019,20 +1091,27 @@ function onResize() {
 }
 
 // ── Game over ────────────────────────────────────────
+function showGameOver() {
+  // Standalone element — not part of .screen system, show directly
+  const el = document.getElementById('screen-gameover');
+  el.style.display = 'flex';
+}
+
+function hideGameOver() {
+  document.getElementById('screen-gameover').style.display = 'none';
+}
+
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
-  // Guard against double-trigger
-  if (document.getElementById('screen-gameover').classList.contains('active')) return;
+  if (document.getElementById('screen-gameover').style.display === 'flex') return;
 
   gameRunning = false;
   removeInputListeners();
   hideReportModal();
   hideEmoteWheel();
 
-  // Stop render loop
   if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
   gameOverFrames = null;
 
-  // Populate result UI
   const isDraw = iWon === null;
   document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
   document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
@@ -1046,14 +1125,7 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   document.getElementById('gameover-sub').textContent   = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Show gameover — it has its own solid background, no canvas needed
-  // Use setTimeout to let the current frame finish painting first
-  setTimeout(() => {
-    document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
-    const go = document.getElementById('screen-gameover');
-    go.style.display = 'flex';
-    go.classList.add('active');
-  }, 50);
+  showGameOver();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1377,6 +1449,220 @@ async function apiFetch(url, method, body) {
   } catch { return null; }
 }
 
+// ═══════════════════════════════════════════════════
+//  NEWS
+// ═══════════════════════════════════════════════════
+async function loadNews() {
+  const res = await fetch('/api/admin/news');
+  const data = await res.json();
+  renderNews(data.news || []);
+}
+
+function renderNews(newsList) {
+  const el = document.getElementById('news-list');
+  if (!newsList.length) { el.innerHTML = '<div class="news-empty">No news yet.</div>'; return; }
+  el.innerHTML = newsList.map(n => `
+    <div class="news-item ${n.pinned ? 'pinned' : ''}">
+      ${n.pinned ? '<div class="news-pin">📌 Pinned</div>' : ''}
+      <div class="news-item-title">${escHtml(n.title)}</div>
+      <div class="news-item-body">${escHtml(n.body)}</div>
+      <div class="news-item-meta">— ${escHtml(n.author)} · ${new Date(n.createdAt).toLocaleDateString()}</div>
+    </div>
+  `).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════
+//  ADMIN
+// ═══════════════════════════════════════════════════
+let currentAdminTab = 'users';
+
+function adminTab(tab) {
+  currentAdminTab = tab;
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+  const tabs = document.querySelectorAll('.admin-tab');
+  const tabNames = ['users','reports','news','give'];
+  const idx = tabNames.indexOf(tab);
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  const panel = document.getElementById('admin-panel-' + tab);
+  if (panel) panel.classList.add('active');
+  if (tab === 'reports') adminLoadReports();
+  if (tab === 'news') adminLoadNewsPanel();
+  if (tab === 'give') adminPopulateItemSelect();
+}
+
+// ── Users ─────────────────────────────────────────
+async function adminSearchUsers() {
+  const search = document.getElementById('admin-user-search').value.trim();
+  const res = await apiFetch(`/api/admin/users?search=${encodeURIComponent(search)}`, 'GET');
+  if (!res) return;
+  const list = document.getElementById('admin-users-list');
+  if (!res.users.length) { list.innerHTML = '<div class="admin-empty">No users found.</div>'; return; }
+  list.innerHTML = res.users.map(u => `
+    <div class="admin-user-row">
+      <div class="admin-user-info">
+        <span class="admin-user-name">${escHtml(u.username)}</span>
+        <span class="admin-user-tags">
+          ${u.isAdmin ? '<span class="tag tag-admin">Admin</span>' : ''}
+          ${u.isBanned ? '<span class="tag tag-ban">Banned</span>' : ''}
+        </span>
+        <span class="admin-user-meta">W:${u.wins} L:${u.losses} 🪙${u.coins}</span>
+      </div>
+      <div class="admin-user-actions">
+        ${!u.isBanned
+          ? `<button class="btn-small btn-decline" onclick="adminBan('${escHtml(u.username)}')">Ban</button>`
+          : `<button class="btn-small btn-accept" onclick="adminUnban('${escHtml(u.username)}')">Unban</button>`}
+        ${!u.isAdmin
+          ? `<button class="btn-small" onclick="adminMakeAdmin('${escHtml(u.username)}')">Make Admin</button>`
+          : `<button class="btn-small btn-decline" onclick="adminRemoveAdmin('${escHtml(u.username)}')">Remove Admin</button>`}
+        <button class="btn-small" onclick="adminKick('${escHtml(u.username)}')">Kick</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function adminBan(username) {
+  const reason = prompt(`Ban reason for ${username}:`);
+  if (reason === null) return;
+  const res = await apiFetch('/api/admin/ban', 'POST', { username, reason });
+  if (res) { showAdminMsg(res.message); adminSearchUsers(); }
+}
+async function adminUnban(username) {
+  const res = await apiFetch('/api/admin/unban', 'POST', { username });
+  if (res) { showAdminMsg(res.message); adminSearchUsers(); }
+}
+async function adminMakeAdmin(username) {
+  if (!confirm(`Make ${username} an admin?`)) return;
+  const res = await apiFetch('/api/admin/makeadmin', 'POST', { username });
+  if (res) { showAdminMsg(res.message); adminSearchUsers(); }
+}
+async function adminRemoveAdmin(username) {
+  if (!confirm(`Remove admin from ${username}?`)) return;
+  const res = await apiFetch('/api/admin/removeadmin', 'POST', { username });
+  if (res) { showAdminMsg(res.message); adminSearchUsers(); }
+}
+async function adminKick(username) {
+  if (!confirm(`Kick ${username} from the server?`)) return;
+  const res = await apiFetch('/api/admin/kick', 'POST', { username });
+  if (res) showAdminMsg(res.message || res.error);
+}
+
+// ── Reports ────────────────────────────────────────
+async function adminLoadReports() {
+  const res = await apiFetch('/api/admin/reports', 'GET');
+  if (!res) return;
+  const list = document.getElementById('admin-reports-list');
+  if (!res.reports.length) { list.innerHTML = '<div class="admin-empty">No reports yet.</div>'; return; }
+  list.innerHTML = res.reports.map(r => `
+    <div class="admin-report-row ${r.status}">
+      <div class="admin-report-header">
+        <span class="admin-report-from">🚩 <strong>${escHtml(r.reporterUsername)}</strong> reported <strong>${escHtml(r.reportedUsername)}</strong></span>
+        <span class="tag tag-${r.status}">${r.status}</span>
+      </div>
+      <div class="admin-report-reason">Reason: ${escHtml(r.reason)}</div>
+      ${r.details ? `<div class="admin-report-details">"${escHtml(r.details)}"</div>` : ''}
+      <div class="admin-report-meta">${new Date(r.createdAt).toLocaleString()}</div>
+      <div class="admin-report-actions">
+        <button class="btn-small btn-accept" onclick="adminSetReportStatus('${r._id}','reviewed')">Mark Reviewed</button>
+        <button class="btn-small" onclick="adminSetReportStatus('${r._id}','dismissed')">Dismiss</button>
+        <button class="btn-small btn-decline" onclick="adminBan('${escHtml(r.reportedUsername)}')">Ban Player</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function adminSetReportStatus(id, status) {
+  await apiFetch(`/api/admin/reports/${id}/status`, 'POST', { status });
+  adminLoadReports();
+}
+
+// ── Admin News ─────────────────────────────────────
+async function adminLoadNewsPanel() {
+  const res = await fetch('/api/admin/news');
+  const data = await res.json();
+  const list = document.getElementById('admin-news-list');
+  if (!data.news || !data.news.length) { list.innerHTML = '<div class="admin-empty">No news posted yet.</div>'; return; }
+  list.innerHTML = data.news.map(n => `
+    <div class="admin-news-row">
+      <div class="admin-news-title">${n.pinned ? '📌 ' : ''}${escHtml(n.title)}</div>
+      <div class="admin-news-body">${escHtml(n.body)}</div>
+      <div class="admin-news-meta">${new Date(n.createdAt).toLocaleString()}</div>
+      <button class="btn-small btn-decline" onclick="adminDeleteNews('${n._id}')">Delete</button>
+    </div>
+  `).join('');
+}
+
+async function adminPostNews() {
+  const title  = document.getElementById('admin-news-title').value.trim();
+  const body   = document.getElementById('admin-news-body').value.trim();
+  const pinned = document.getElementById('admin-news-pinned').checked;
+  if (!title || !body) { showAdminMsg('Title and body required.'); return; }
+  const res = await apiFetch('/api/admin/news', 'POST', { title, body, pinned });
+  if (res) {
+    showAdminMsg('News posted!');
+    document.getElementById('admin-news-title').value = '';
+    document.getElementById('admin-news-body').value  = '';
+    document.getElementById('admin-news-pinned').checked = false;
+    adminLoadNewsPanel();
+  }
+}
+
+async function adminDeleteNews(id) {
+  if (!confirm('Delete this news post?')) return;
+  await apiFetch(`/api/admin/news/${id}`, 'DELETE');
+  adminLoadNewsPanel();
+}
+
+// ── Give Items ─────────────────────────────────────
+function adminPopulateItemSelect() {
+  const sel = document.getElementById('admin-give-item');
+  sel.innerHTML = '<option value="">— Select item to give —</option>';
+  if (!shopCatalog) return;
+  const groups = ['robe','spell','title','emote'];
+  groups.forEach(cat => {
+    const items = shopCatalog.filter(i => i.category === cat);
+    if (!items.length) return;
+    const og = document.createElement('optgroup');
+    og.label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
+    items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name + (item.price ? ` (🪙${item.price})` : ' (Free)');
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+}
+
+async function adminGiveItem() {
+  const username = document.getElementById('admin-give-username').value.trim();
+  const itemId   = document.getElementById('admin-give-item').value;
+  if (!username || !itemId) { showAdminMsg('Username and item required.'); return; }
+  const res = await apiFetch('/api/admin/giveitem', 'POST', { username, itemId });
+  showAdminMsg(res ? res.message : 'Error giving item.');
+}
+
+async function adminGiveCoins() {
+  const username = document.getElementById('admin-coins-username').value.trim();
+  const amount   = parseInt(document.getElementById('admin-coins-amount').value);
+  if (!username || !amount || amount < 1) { showAdminMsg('Username and valid amount required.'); return; }
+  const res = await apiFetch('/api/admin/givecoins', 'POST', { username, amount });
+  showAdminMsg(res ? res.message : 'Error giving coins.');
+}
+
+function showAdminMsg(msg) {
+  const el = document.getElementById('admin-give-msg');
+  if (!el) { showReportConfirmation(msg); return; }
+  el.textContent = msg;
+  el.className = 'friend-msg success';
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
 // ══════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════
@@ -1423,11 +1709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Game over buttons
   document.getElementById('btn-play-again').addEventListener('click', () => {
-    document.getElementById('screen-gameover').classList.remove('active');
-    document.getElementById('screen-gameover').style.display = '';
-    document.getElementById('screen-game').classList.remove('active');
-    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
-    gameOverFrames = null;
+    hideGameOver();
     if (renderer) {
       Object.values(playerMeshes).forEach(m => scene.remove(m));
       Object.values(projMeshes).forEach(m => scene.remove(m));
@@ -1437,11 +1719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     joinQueue();
   });
   document.getElementById('btn-gameover-menu').addEventListener('click', () => {
-    document.getElementById('screen-gameover').classList.remove('active');
-    document.getElementById('screen-gameover').style.display = '';
-    document.getElementById('screen-game').classList.remove('active');
-    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
-    gameOverFrames = null;
+    hideGameOver();
     if (renderer) {
       Object.values(playerMeshes).forEach(m => scene.remove(m));
       Object.values(projMeshes).forEach(m => scene.remove(m));

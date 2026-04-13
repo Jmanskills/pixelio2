@@ -23,6 +23,9 @@ const userSchema = new mongoose.Schema({
   friends:        { type: [String], default: [] },
   friendRequests: { type: [String], default: [] },
 
+  isAdmin: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false },
+  banReason: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -47,7 +50,9 @@ userSchema.methods.safeProfile = function () {
     equippedSpell: this.equippedSpell,
     equippedTitle: this.equippedTitle,
     friends: this.friends,
-    friendRequests: this.friendRequests
+    friendRequests: this.friendRequests,
+    isAdmin: this.isAdmin,
+    isBanned: this.isBanned
   };
 };
 

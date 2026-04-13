@@ -27,6 +27,7 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username: username.trim() });
     if (!user || !(await user.comparePassword(password))) return res.status(401).json({ error: 'Invalid username or password.' });
+    if (user.isBanned) return res.status(403).json({ error: `You are banned. Reason: ${user.banReason || 'Violation of rules.'}` });
     res.json({ token: signToken(user), profile: user.safeProfile() });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
 });

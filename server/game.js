@@ -1,4 +1,5 @@
 const User = require('./models/User');
+const Report = require('./models/Report');
 
 // Game constants
 const ARENA_SIZE = 40;
@@ -191,6 +192,7 @@ async function tickRoom(room, io) {
 const onlineUsers = {}; // username -> socketId
 
 function setupGameSockets(io) {
+  _io = io;
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
@@ -336,12 +338,22 @@ function setupGameSockets(io) {
       delete rooms[socket.roomId];
     });
 
-    // Report a player
-    socket.on('reportPlayer', ({ reportedUsername, reason, details }) => {
-      const safeDetails = (details || '').slice(0, 300);
-      console.log(`[REPORT] ${socket.username} reported ${reportedUsername} | Reason: ${reason} | Details: ${safeDetails}`);
-      // Acknowledge receipt to reporter
-      socket.emit('reportReceived', { message: 'Report submitted. Thank you.' });
+    // Report a player — save to DB
+    socket.on('reportPlayer', async ({ reportedUsername, reason, details }) => {
+      try {
+        const safeDetails = (details || '').slice(0, 300);
+        await Report.create({ reporterUsername: socket.username, reportedUsername, reason, details: safeDetails });
+        socket.emit('reportReceived', { message: 'Report submitted. Thank you.' });
+      } catch(e) { console.error('Report save error:', e); }
+    });
+
+    // Kick — admin only, sent from server via socket
+    socket.on('adminKick', ({ targetUsername }) => {
+      // Only trust this from server-side calls, validated there
+      const targetSocketId = onlineUsers[targetUsername];
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('kicked', { reason: 'You were kicked by an admin.' });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -364,4 +376,5 @@ function setupGameSockets(io) {
   });
 }
 
-module.exports = { setupGameSockets, SPELLS };
+module.exports = { setupGameSockets, SPELLS, getOnlineUsers: () => onlineUsers, getIO: () => _io };
+let _io = null;
