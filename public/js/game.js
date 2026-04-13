@@ -1020,37 +1020,40 @@ function onResize() {
 
 // ── Game over ────────────────────────────────────────
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
-  // Guard: don't trigger twice
-  if (!gameRunning && document.getElementById('screen-gameover').classList.contains('active')) return;
+  // Guard against double-trigger
+  if (document.getElementById('screen-gameover').classList.contains('active')) return;
 
   gameRunning = false;
   removeInputListeners();
   hideReportModal();
   hideEmoteWheel();
 
-  // Cancel any existing render loop cleanly
+  // Stop render loop
   if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
   gameOverFrames = null;
 
+  // Populate result UI
   const isDraw = iWon === null;
-
   document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
   document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
 
   let sub;
-  if (isDraw) sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
+  if (isDraw)            sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
   else if (disconnected) sub = 'Opponent disconnected — Victory!';
-  else if (iWon) sub = `You defeated ${winnerName}!`;
-  else sub = `${winnerName} wins this round.`;
+  else if (iWon)         sub = `You defeated ${winnerName}!`;
+  else                   sub = `${winnerName} wins this round.`;
 
-  document.getElementById('gameover-sub').textContent = sub;
+  document.getElementById('gameover-sub').textContent   = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Hide game screen, show gameover screen cleanly
-  document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
-  const go = document.getElementById('screen-gameover');
-  go.style.display = 'flex';
-  go.classList.add('active');
+  // Show gameover — it has its own solid background, no canvas needed
+  // Use setTimeout to let the current frame finish painting first
+  setTimeout(() => {
+    document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
+    const go = document.getElementById('screen-gameover');
+    go.style.display = 'flex';
+    go.classList.add('active');
+  }, 50);
 }
 
 // ══════════════════════════════════════════════════════
