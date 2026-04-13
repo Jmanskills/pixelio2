@@ -48,7 +48,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
 .auth-input:focus{border-color:var(--purple-light);}
 .auth-input::placeholder{color:#5a5080;}
 .auth-error{width:100%;padding:10px 14px;background:#3b0a0a;border:1px solid var(--red);border-radius:6px;color:#ff8888;font-size:.85rem;text-align:center;}
-.hidden{display:none!important;}
+.hidden{display:none;}
 
 #splash-loading{display:flex;flex-direction:column;align-items:center;gap:16px;}
 .splash-loading-text{color:var(--gray);font-size:.9rem;}

@@ -117,9 +117,15 @@ function enterMainMenu() {
   connectSocket();
   loadFriends();
   loadNews();
-  // Show admin nav button if admin
+  // Show/hide admin nav button based on profile
+  refreshAdminVisibility();
+}
+
+function refreshAdminVisibility() {
   const adminBtn = document.getElementById('nav-admin');
-  if (adminBtn) adminBtn.classList.toggle('hidden', !profile.isAdmin);
+  if (!adminBtn) return;
+  // Use inline style directly — no class system involved
+  adminBtn.style.display = (profile && profile.isAdmin) ? 'flex' : 'none';
 }
 
 function updateMenuUI() {
@@ -1091,33 +1097,40 @@ function onResize() {
 }
 
 // ── Game over ────────────────────────────────────────
+let _gameOverShown = false;
+
 function showGameOver() {
-  // Hide the game screen first — WebGL canvas creates its own GPU compositing
-  // layer that can paint above CSS z-index. Hiding screen-game solves this.
+  _gameOverShown = true;
+  // CRITICAL: Hide screen-game FIRST — WebGL canvas has its own GPU compositing
+  // layer that renders above all CSS z-index, including z-index:9999.
+  // The only fix is to remove the canvas from the DOM flow entirely.
   const gameScreen = document.getElementById('screen-game');
-  if (gameScreen) { gameScreen.classList.remove('active'); gameScreen.style.display = 'none'; }
-  // Show gameover standalone overlay
+  if (gameScreen) {
+    gameScreen.classList.remove('active');
+    gameScreen.style.setProperty('display', 'none', 'important');
+  }
+  // Now show the gameover overlay
   const el = document.getElementById('screen-gameover');
-  el.style.display = 'flex';
+  el.style.setProperty('display', 'flex', 'important');
 }
 
 function hideGameOver() {
-  document.getElementById('screen-gameover').style.display = 'none';
-  // Restore game screen display control to CSS
+  _gameOverShown = false;
+  const el = document.getElementById('screen-gameover');
+  el.style.removeProperty('display');
+  el.style.display = 'none';
+  // Restore game screen to CSS control
   const gameScreen = document.getElementById('screen-game');
-  if (gameScreen) { gameScreen.style.display = ''; }
+  if (gameScreen) { gameScreen.style.removeProperty('display'); }
 }
 
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
-  if (document.getElementById('screen-gameover').style.display === 'flex') return;
+  if (_gameOverShown) return;
 
   gameRunning = false;
   removeInputListeners();
   hideReportModal();
   hideEmoteWheel();
-
-  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
-  gameOverFrames = null;
 
   const isDraw = iWon === null;
   document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
@@ -1132,7 +1145,12 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   document.getElementById('gameover-sub').textContent   = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
+  // Show overlay FIRST so it's visible immediately
   showGameOver();
+
+  // Stop render loop AFTER overlay is shown
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  gameOverFrames = null;
 }
 
 // ══════════════════════════════════════════════════════
