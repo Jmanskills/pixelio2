@@ -1092,13 +1092,20 @@ function onResize() {
 
 // ── Game over ────────────────────────────────────────
 function showGameOver() {
-  // Standalone element — not part of .screen system, show directly
+  // Hide the game screen first — WebGL canvas creates its own GPU compositing
+  // layer that can paint above CSS z-index. Hiding screen-game solves this.
+  const gameScreen = document.getElementById('screen-game');
+  if (gameScreen) { gameScreen.classList.remove('active'); gameScreen.style.display = 'none'; }
+  // Show gameover standalone overlay
   const el = document.getElementById('screen-gameover');
   el.style.display = 'flex';
 }
 
 function hideGameOver() {
   document.getElementById('screen-gameover').style.display = 'none';
+  // Restore game screen display control to CSS
+  const gameScreen = document.getElementById('screen-game');
+  if (gameScreen) { gameScreen.style.display = ''; }
 }
 
 function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
