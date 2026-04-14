@@ -41,12 +41,19 @@ function closeAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
 }
 
+function showSplashLoading() {
+  const el = document.getElementById('splash-loading');
+  if(el) el.style.display = 'flex';
+}
+function hideSplashLoading() {
+  const el = document.getElementById('splash-loading');
+  if(el) el.style.display = 'none';
+}
+
 async function tryAutoLogin() {
   const saved = localStorage.getItem('pixelio_token');
   if(!saved) return false;
-  // Show loading overlay
-  const loading = document.getElementById('splash-loading');
-  if(loading) { loading.classList.remove('hidden'); }
+  showSplashLoading();
   try {
     const res = await fetch('/api/auth/me', { headers:{ Authorization:'Bearer '+saved } });
     if(!res.ok) throw new Error('invalid');
@@ -56,7 +63,7 @@ async function tryAutoLogin() {
     enterMainMenu(); return true;
   } catch {
     localStorage.removeItem('pixelio_token');
-    if(loading) loading.classList.add('hidden');
+    hideSplashLoading();
     return false;
   }
 }
@@ -87,7 +94,7 @@ function logout() {
   localStorage.removeItem('pixelio_token');
   authToken=null; profile=null; myId=null;
   if(socket){socket.disconnect();socket=null;}
-  const loading=document.getElementById('splash-loading'); if(loading)loading.classList.add('hidden');
+  hideSplashLoading();
   showScreen('screen-splash');
   drawSplashWizard();
 }
@@ -625,7 +632,7 @@ function connectSocket(){
   socket.on('shieldBlocked',({playerId})=>{const m=playerMeshes[playerId];if(m&&m.userData.shield){m.userData.shield.visible=true;setTimeout(()=>{if(m.userData.shield)m.userData.shield.visible=false;},400);} });
   socket.on('gameOver',({winnerId,winnerName,coinsEarned})=>{const iWon=winnerId===myId;const earned=coinsEarned?(coinsEarned[myId]||0):0;if(earned>0)profile.coins+=earned;endGame(iWon,winnerName,false,earned);});
   socket.on('opponentDisconnected',()=>endGame(true,profile.username,true,50));
-  socket.on('kicked',({reason})=>{gameRunning=false;if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}hideGameOver();socket.disconnect();socket=null;alert('⚠️ '+(reason||'You were kicked by an admin.'));showScreen('screen-splash');const sl=document.getElementById('splash-loading');if(sl)sl.classList.add('hidden');drawSplashWizard();localStorage.removeItem('pixelio_token');});
+  socket.on('kicked',({reason})=>{gameRunning=false;if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}hideGameOver();socket.disconnect();socket=null;alert('⚠️ '+(reason||'You were kicked by an admin.'));showScreen('screen-splash');hideSplashLoading();drawSplashWizard();localStorage.removeItem('pixelio_token');});
   socket.on('matchDraw',({quitterName})=>{endGame(null,null,false,0,quitterName);});
   socket.on('reportReceived',({message})=>{showReportConfirmation(message);});
   socket.on('opponentEmote',({emoteKey,fromId})=>{playEmote(emoteKey,fromId);});

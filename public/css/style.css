@@ -46,7 +46,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
 .auth-error{width:100%;padding:10px 14px;background:#3b0a0a;border:1px solid var(--red);border-radius:6px;color:#ff8888;font-size:.85rem;text-align:center;}
 .hidden{display:none;}
 
-#splash-loading,.splash-loading-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;position:absolute;inset:0;justify-content:center;z-index:10;background:#7b00d4;}
+#splash-loading{flex-direction:column;align-items:center;gap:16px;position:absolute;inset:0;justify-content:center;z-index:10;background:#7b00d4;}
 .splash-loading-text{color:rgba(255,255,255,.8);font-size:.9rem;}
 
 /* ── BUTTONS ── */
