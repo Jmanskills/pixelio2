@@ -24,7 +24,7 @@
   <!-- Hero -->
   <div class="splash-hero">
     <div class="splash-hero-left">
-      <div class="splash-tagline">Pixelio is a fun fighting<br/>game for school, buy skins,<br/>play with friends, and<br/>have fun</div>
+      <div class="splash-tagline">Pixelio is a fun action<br/>game for school, buy outfits,<br/>play with friends, and<br/>have fun!</div>
       <div class="splash-hero-btns">
         <button class="splash-hero-btn splash-hero-btn-register" onclick="openAuthModal('register')">register</button>
         <button class="splash-hero-btn splash-hero-btn-login" onclick="openAuthModal('login')">Log in</button>
@@ -45,7 +45,7 @@
 <!-- ══════════ AUTH MODAL ══════════ -->
 <div id="auth-modal" class="modal-overlay hidden">
   <div class="modal-box auth-modal-box">
-    <div class="auth-modal-logo">🧙 Pixelio</div>
+    <div class="auth-modal-logo">🎮 Pixelio</div>
     <div class="auth-modal-tabs">
       <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log in</button>
       <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
@@ -72,7 +72,7 @@
         <div class="avatar-robe" id="avatar-robe"></div>
       </div>
       <div class="menu-username-wrap">
-        <div class="menu-title-badge" id="menu-title-badge">Wizard</div>
+        <div class="menu-title-badge" id="menu-title-badge">Player</div>
         <div class="menu-username" id="menu-username">Player</div>
         <div class="menu-wl" id="menu-wl">0W / 0L</div>
       </div>
@@ -161,8 +161,8 @@
     <div class="menu-panel" id="panel-shop">
       <div class="shop-header">
         <div class="shop-tabs">
-          <button class="shop-tab active" onclick="shopTab('robe')">🧥 Robes</button>
-          <button class="shop-tab" onclick="shopTab('spell')">✨ Spell FX</button>
+          <button class="shop-tab active" onclick="shopTab('robe')">👕 Outfits</button>
+          <button class="shop-tab" onclick="shopTab('spell')">🔫 Weapon FX</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
           <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
@@ -196,7 +196,7 @@
         </div>
         <!-- Avatar picker -->
         <div class="profile-avatar-section">
-          <div class="profile-section-title">Choose Your Wizard Avatar</div>
+          <div class="profile-section-title">Choose Your Character</div>
           <div class="avatar-grid" id="avatar-grid"></div>
         </div>
         <!-- Look up other player -->
@@ -282,7 +282,7 @@
 <!-- ══════════ LOBBY ══════════ -->
 <div id="screen-lobby" class="screen">
   <div class="lobby-box">
-    <div class="lobby-title" id="lobby-title">⚔️ Finding Opponent...</div>
+    <div class="lobby-title" id="lobby-title">🎮 Finding Opponent...</div>
     <div class="lobby-spinner"></div>
     <div class="lobby-msg" id="lobby-msg">Joining the queue...</div>
     <div class="lobby-player">Playing as: <span id="lobby-username"></span></div>
@@ -310,15 +310,15 @@
   </div>
   <div id="spell-bar">
     <div class="spell-slot" id="spell-1">
-      <div class="spell-icon">🔥</div><div class="spell-name">Fireball</div>
+      <div class="spell-icon">🚀</div><div class="spell-name">Rocket</div>
       <div class="spell-key">Q</div><div class="spell-cooldown-overlay" id="cd-fireball"></div>
     </div>
     <div class="spell-slot" id="spell-2">
-      <div class="spell-icon">🧊</div><div class="spell-name">Ice Shard</div>
+      <div class="spell-icon">🔵</div><div class="spell-name">Blaster</div>
       <div class="spell-key">E</div><div class="spell-cooldown-overlay" id="cd-iceshard"></div>
     </div>
     <div class="spell-slot" id="spell-3">
-      <div class="spell-icon">⚡</div><div class="spell-name">Thunder</div>
+      <div class="spell-icon">⚡</div><div class="spell-name">Zapper</div>
       <div class="spell-key">R</div><div class="spell-cooldown-overlay" id="cd-thunder"></div>
     </div>
     <div class="spell-slot" id="spell-4">
@@ -328,7 +328,7 @@
   </div>
   <div id="hit-flash"></div>
   <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
-  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q/E/R/F: Spells &nbsp;|&nbsp; Tab: Emotes</div>
+  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q: Rocket | E: Blaster | R: Zapper | F: Shield &nbsp;|&nbsp; Tab: Emotes</div>
 
   <!-- Emote button & wheel -->
   <div id="emote-btn-wrap">
@@ -382,7 +382,7 @@
     <div class="gameover-title" id="gameover-title">YOU WIN!</div>
     <div class="gameover-sub" id="gameover-sub"></div>
     <div class="gameover-coins" id="gameover-coins"></div>
-    <button class="btn-primary" id="btn-play-again">⚔️ Play Again</button>
+    <button class="btn-primary" id="btn-play-again">🎮 Play Again</button>
     <button class="btn-secondary" id="btn-gameover-menu">🏠 Main Menu</button>
   </div>
 </div>

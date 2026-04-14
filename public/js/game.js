@@ -153,19 +153,39 @@ function renderPreviewCanvas() {
   const ctx=canvas.getContext('2d'); const w=canvas.width,h=canvas.height;
   ctx.clearRect(0,0,w,h);
   const robeHex=ROBE_COLORS[profile?profile.equippedRobe:'robe_default']||0x6a0dad;
-  const robeColor=hexToCSS(robeHex);
-  const grd=ctx.createRadialGradient(w/2,h*.6,10,w/2,h*.6,90);
-  grd.addColorStop(0,robeColor+'44'); grd.addColorStop(1,'transparent');
-  ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(w/2,h-20,35,10,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle=robeColor; ctx.beginPath(); ctx.moveTo(w/2-22,h-30); ctx.lineTo(w/2+22,h-30); ctx.lineTo(w/2+32,h-30); ctx.lineTo(w/2+28,h-100); ctx.lineTo(w/2-28,h-100); ctx.lineTo(w/2-32,h-30); ctx.closePath(); ctx.fill();
-  ctx.fillStyle='#f5d5a0'; ctx.beginPath(); ctx.arc(w/2,h-116,20,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#111122'; ctx.beginPath(); ctx.ellipse(w/2,h-134,28,7,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#111122'; ctx.beginPath(); ctx.moveTo(w/2-20,h-134); ctx.lineTo(w/2+20,h-134); ctx.lineTo(w/2,h-186); ctx.closePath(); ctx.fill();
-  ctx.fillStyle=robeColor; ctx.font='14px serif'; ctx.textAlign='center'; ctx.fillText('★',w/2,h-155);
-  ctx.strokeStyle='#8b5e3c'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(w/2+34,h-30); ctx.lineTo(w/2+38,h-145); ctx.stroke();
-  ctx.fillStyle=robeColor; ctx.font='16px serif'; ctx.fillText('◆',w/2+36,h-148);
-  if(profile){const spellColor=SPELL_COLORS[profile.equippedSpell];if(spellColor){ctx.fillStyle=hexToCSS(spellColor);ctx.globalAlpha=.6;ctx.fillText('◆',w/2+36,h-148);ctx.globalAlpha=1;}}
+  const c=hexToCSS(robeHex);
+  const s=w/120;
+  // Glow
+  const grd=ctx.createRadialGradient(w/2,h*.6,5,w/2,h*.6,w*.55);
+  grd.addColorStop(0,c+'44');grd.addColorStop(1,'transparent');
+  ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(w/2,h-12*s,26*s,7*s,0,0,Math.PI*2);ctx.fill();
+  // Legs
+  ctx.fillStyle='#334455';
+  ctx.fillRect(w/2-14*s,h-50*s,11*s,38*s);
+  ctx.fillRect(w/2+3*s,h-50*s,11*s,38*s);
+  // Shoes
+  ctx.fillStyle='#222';ctx.fillRect(w/2-15*s,h-16*s,14*s,7*s);ctx.fillRect(w/2+3*s,h-16*s,14*s,7*s);
+  // Body
+  ctx.fillStyle=c;ctx.fillRect(w/2-18*s,h-100*s,36*s,52*s);
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(w/2+2*s,h-100*s,16*s,52*s);
+  // Arms
+  ctx.fillStyle=c;ctx.fillRect(w/2-30*s,h-98*s,13*s,38*s);ctx.fillRect(w/2+17*s,h-98*s,13*s,38*s);
+  // Gun
+  ctx.fillStyle='#333';ctx.fillRect(w/2+30*s,h-72*s,22*s,9*s);
+  ctx.fillStyle='#555';ctx.fillRect(w/2+47*s,h-70*s,14*s,5*s);
+  // Neck+Head
+  ctx.fillStyle='#f5c896';ctx.fillRect(w/2-5*s,h-110*s,10*s,13*s);
+  ctx.fillRect(w/2-16*s,h-142*s,32*s,34*s);
+  // Eyes
+  ctx.fillStyle='#222';ctx.fillRect(w/2-10*s,h-133*s,6*s,6*s);ctx.fillRect(w/2+4*s,h-133*s,6*s,6*s);
+  ctx.fillStyle='#fff';ctx.fillRect(w/2-9*s,h-132*s,3*s,3*s);ctx.fillRect(w/2+5*s,h-132*s,3*s,3*s);
+  // Helmet
+  ctx.fillStyle=c;ctx.fillRect(w/2-17*s,h-145*s,34*s,8*s);ctx.fillRect(w/2-14*s,h-168*s,28*s,25*s);
+  ctx.fillStyle='rgba(100,200,255,0.4)';ctx.fillRect(w/2-12*s,h-158*s,24*s,14*s);
+  // Star
+  ctx.fillStyle='#ffdd00';ctx.font=(9*s)+'px serif';ctx.textAlign='center';ctx.fillText('★',w/2,h-150*s);
 }
 
 // ── Shop ──────────────────────────────────────────────
@@ -377,12 +397,18 @@ function showAdminMsg(msg) {
 
 // ── Profile ───────────────────────────────────────────
 const AVATARS = [
-  {id:'wizard1',emoji:'🧙',label:'Classic Wizard',robeColor:'#6a0dad'},{id:'wizard2',emoji:'🧙',label:'Crimson Mage',robeColor:'#cc1122'},
-  {id:'wizard3',emoji:'🧙',label:'Ocean Sorcerer',robeColor:'#0066cc'},{id:'wizard4',emoji:'🧙',label:'Forest Druid',robeColor:'#1a7a2a'},
-  {id:'wizard5',emoji:'🧙',label:'Golden Archmage',robeColor:'#d4a017'},{id:'wizard6',emoji:'🧙',label:'Shadow Warlock',robeColor:'#1a1a2e'},
-  {id:'wizard7',emoji:'🔮',label:'Crystal Seer',robeColor:'#88ddff'},{id:'wizard8',emoji:'⚡',label:'Storm Caller',robeColor:'#ffee00'},
-  {id:'wizard9',emoji:'🔥',label:'Fire Sage',robeColor:'#ff4400'},{id:'wizard10',emoji:'❄️',label:'Frost Witch',robeColor:'#88ccff'},
-  {id:'wizard11',emoji:'🌿',label:'Nature Shaman',robeColor:'#44aa44'},{id:'wizard12',emoji:'💀',label:'Death Mage',robeColor:'#330033'},
+  {id:'wizard1', emoji:'🎮',label:'Default',      robeColor:'#6a0dad'},
+  {id:'wizard2', emoji:'🔴',label:'Red Squad',    robeColor:'#cc1122'},
+  {id:'wizard3', emoji:'🔵',label:'Blue Squad',   robeColor:'#0066cc'},
+  {id:'wizard4', emoji:'🟢',label:'Green Squad',  robeColor:'#1a7a2a'},
+  {id:'wizard5', emoji:'🌟',label:'Gold Squad',   robeColor:'#d4a017'},
+  {id:'wizard6', emoji:'⬛',label:'Shadow Squad', robeColor:'#1a1a2e'},
+  {id:'wizard7', emoji:'💎',label:'Crystal Squad',robeColor:'#88ddff'},
+  {id:'wizard8', emoji:'⚡',label:'Storm Squad',  robeColor:'#ffee00'},
+  {id:'wizard9', emoji:'🔥',label:'Fire Squad',   robeColor:'#ff4400'},
+  {id:'wizard10',emoji:'❄️',label:'Ice Squad',    robeColor:'#88ccff'},
+  {id:'wizard11',emoji:'🌿',label:'Nature Squad', robeColor:'#44aa44'},
+  {id:'wizard12',emoji:'🖤',label:'Stealth Squad',robeColor:'#330033'},
 ];
 
 function loadProfilePanel() {
@@ -501,17 +527,36 @@ function addLights(){scene.add(new THREE.AmbientLight(0x334466,.8));const moon=n
 function addSkybox(){const sky=new THREE.Mesh(new THREE.SphereGeometry(100,16,8),new THREE.MeshBasicMaterial({color:0x050312,side:THREE.BackSide}));scene.add(sky);const sv=[];for(let i=0;i<800;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=90;sv.push(r*Math.sin(p)*Math.cos(t),r*Math.cos(p),r*Math.sin(p)*Math.sin(t));}const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.3})));}
 
 function createWizardMesh(robeItemId,spellItemId){
-  const rc=ROBE_COLORS[robeItemId]||0x6a0dad,sc=SPELL_COLORS[spellItemId]||rc;
-  const g=new THREE.Group();const rm=new THREE.MeshLambertMaterial({color:rc});
-  const robe=new THREE.Mesh(new THREE.CylinderGeometry(.3,.6,1.6,8),rm);robe.position.y=.8;robe.castShadow=true;g.add(robe);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.28,8,8),new THREE.MeshLambertMaterial({color:0xf5d5a0}));head.position.y=1.9;g.add(head);
-  const hm=new THREE.MeshLambertMaterial({color:0x111122});const brim=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.08,12),hm);brim.position.y=2.1;g.add(brim);
-  const cone=new THREE.Mesh(new THREE.ConeGeometry(.3,.7,12),hm);cone.position.y=2.55;g.add(cone);
-  const staff=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,2.2,6),new THREE.MeshLambertMaterial({color:0x8b5e3c}));staff.position.set(.55,1.1,0);staff.rotation.z=.1;g.add(staff);
-  const cry=new THREE.Mesh(new THREE.OctahedronGeometry(.15),new THREE.MeshBasicMaterial({color:sc}));cry.position.set(.65,2.25,0);g.add(cry);
-  const glow=new THREE.PointLight(sc,1.2,5);glow.position.set(.65,2.25,0);g.add(glow);
-  const shield=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,16),new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:.25,side:THREE.DoubleSide}));shield.position.y=1.0;shield.visible=false;g.add(shield);
-  g.userData.shield=shield; return g;
+  // NOTE: Player model will be replaced with your custom 3D model.
+  // This is a placeholder blocky character in the meantime.
+  const rc=ROBE_COLORS[robeItemId]||0x6a0dad;
+  const sc=SPELL_COLORS[spellItemId]||rc;
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshLambertMaterial({color:rc});
+  const skinMat=new THREE.MeshLambertMaterial({color:0xf5c896});
+  const darkMat=new THREE.MeshLambertMaterial({color:0x222233});
+  // Body (torso)
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.7,1.0,.5),bodyMat);body.position.y=.9;body.castShadow=true;g.add(body);
+  // Legs
+  const legL=new THREE.Mesh(new THREE.BoxGeometry(.3,.8,.4),darkMat);legL.position.set(-.18,.2,.0);legL.castShadow=true;g.add(legL);
+  const legR=new THREE.Mesh(new THREE.BoxGeometry(.3,.8,.4),darkMat);legR.position.set( .18,.2,.0);legR.castShadow=true;g.add(legR);
+  // Head
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),skinMat);head.position.y=1.7;head.castShadow=true;g.add(head);
+  // Helmet/cap
+  const helm=new THREE.Mesh(new THREE.BoxGeometry(.6,.25,.6),bodyMat);helm.position.y=2.0;g.add(helm);
+  // Arms
+  const armL=new THREE.Mesh(new THREE.BoxGeometry(.25,.9,.3),bodyMat);armL.position.set(-.5,.85,0);armL.castShadow=true;g.add(armL);
+  const armR=new THREE.Mesh(new THREE.BoxGeometry(.25,.9,.3),bodyMat);armR.position.set( .5,.85,0);armR.castShadow=true;g.add(armR);
+  // Gun (right hand)
+  const gunBody=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.55),new THREE.MeshLambertMaterial({color:0x333333}));gunBody.position.set(.5,.6,.35);g.add(gunBody);
+  const gunBarrel=new THREE.Mesh(new THREE.BoxGeometry(.06,.06,.4),new THREE.MeshLambertMaterial({color:0x555555}));gunBarrel.position.set(.5,.65,.65);g.add(gunBarrel);
+  // Glow on gun
+  const glow=new THREE.PointLight(sc,.8,3);glow.position.set(.5,.65,.8);g.add(glow);
+  // Shield bubble
+  const shield=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,16),new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:.25,side:THREE.DoubleSide}));
+  shield.position.y=1.0;shield.visible=false;g.add(shield);
+  g.userData.shield=shield;
+  return g;
 }
 function setShieldVisible(id,v){if(playerMeshes[id])playerMeshes[id].userData.shield.visible=v;}
 const BSC={fireball:0xff4400,iceshard:0x88ddff,thunder:0xffee00};
@@ -578,14 +623,18 @@ function onResize(){if(!renderer)return;renderer.setSize(window.innerWidth,windo
 let _gameOverShown=false;
 function showGameOver(){
   _gameOverShown=true;
+  // Stop render loop
   if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}
-  const gs=document.getElementById('screen-game');if(gs)gs.style.cssText='display:none!important';
-  const go=document.getElementById('screen-gameover');go.style.cssText='display:flex!important;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#08051a;';
+  // DO NOT hide screen-game — hiding the canvas kills the WebGL context.
+  // Instead show an opaque overlay on top of everything with a high z-index.
+  const go=document.getElementById('screen-gameover');
+  go.style.display='none'; // ensure clean state first
+  go.style.cssText='display:flex;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;align-items:center;justify-content:center;background:#08051a;';
 }
 function hideGameOver(){
   _gameOverShown=false;
-  const go=document.getElementById('screen-gameover');go.style.cssText='display:none';
-  const gs=document.getElementById('screen-game');if(gs)gs.style.cssText='';
+  const go=document.getElementById('screen-gameover');
+  go.style.cssText='display:none!important;';
 }
 function endGame(iWon,winnerName,disconnected,coinsEarned,quitterName){
   if(_gameOverShown)return;
@@ -673,7 +722,7 @@ async function apiFetch(url,method,body){
 }
 
 
-// ── Splash Wizard ─────────────────────────────────────
+// ── Splash Hero ─────────────────────────────────────────
 function drawSplashWizard() {
   const canvas = document.getElementById('splash-wizard-canvas');
   if(!canvas) return;
@@ -681,115 +730,103 @@ function drawSplashWizard() {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,w,h);
 
-  // Glow background
-  const grd = ctx.createRadialGradient(w/2,h*.55,20,w/2,h*.55,w*.55);
-  grd.addColorStop(0,'rgba(180,80,255,0.35)');
+  // Background glow
+  const grd = ctx.createRadialGradient(w/2,h*.5,20,w/2,h*.5,w*.6);
+  grd.addColorStop(0,'rgba(200,100,255,0.3)');
   grd.addColorStop(1,'transparent');
-  ctx.fillStyle = grd; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
 
-  const s = w/200; // scale
+  const s = w/200;
 
-  // Shadow
-  ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(w/2,h-20*s,50*s,12*s,0,0,Math.PI*2); ctx.fill();
+  // Ground shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(w/2,h-18*s,48*s,10*s,0,0,Math.PI*2); ctx.fill();
 
-  // Robe (large)
-  ctx.fillStyle='#7b00d4';
-  ctx.beginPath();
-  ctx.moveTo(w/2-45*s,h-25*s);
-  ctx.lineTo(w/2+45*s,h-25*s);
-  ctx.lineTo(w/2+55*s,h-25*s);
-  ctx.lineTo(w/2+48*s,h-130*s);
-  ctx.lineTo(w/2-48*s,h-130*s);
-  ctx.lineTo(w/2-55*s,h-25*s);
-  ctx.closePath(); ctx.fill();
+  // === PLAYER CHARACTER ===
+  // Legs
+  ctx.fillStyle='#334455';
+  ctx.fillRect(w/2-22*s, h-80*s, 18*s, 60*s); // left leg
+  ctx.fillRect(w/2+4*s,  h-80*s, 18*s, 60*s); // right leg
+  // Shoes
+  ctx.fillStyle='#222';
+  ctx.fillRect(w/2-24*s, h-24*s, 22*s, 10*s);
+  ctx.fillRect(w/2+4*s,  h-24*s, 22*s, 10*s);
 
-  // Robe shading
+  // Body (jacket/shirt using player outfit color)
+  ctx.fillStyle='#8800ee';
+  ctx.fillRect(w/2-30*s, h-160*s, 60*s, 82*s);
+  // Jacket shading
   ctx.fillStyle='rgba(0,0,0,0.2)';
-  ctx.beginPath();
-  ctx.moveTo(w/2+5*s,h-25*s);
-  ctx.lineTo(w/2+55*s,h-25*s);
-  ctx.lineTo(w/2+48*s,h-130*s);
-  ctx.lineTo(w/2+5*s,h-130*s);
-  ctx.closePath(); ctx.fill();
+  ctx.fillRect(w/2+4*s, h-160*s, 26*s, 82*s);
+  // Jacket highlight
+  ctx.fillStyle='rgba(255,255,255,0.1)';
+  ctx.fillRect(w/2-30*s, h-160*s, 26*s, 82*s);
 
-  // Robe highlight
-  ctx.fillStyle='rgba(255,255,255,0.08)';
-  ctx.beginPath();
-  ctx.moveTo(w/2-5*s,h-25*s);
-  ctx.lineTo(w/2-55*s,h-25*s);
-  ctx.lineTo(w/2-48*s,h-130*s);
-  ctx.lineTo(w/2-5*s,h-130*s);
-  ctx.closePath(); ctx.fill();
+  // Arms
+  ctx.fillStyle='#8800ee';
+  ctx.fillRect(w/2-50*s, h-158*s, 22*s, 60*s); // left arm
+  ctx.fillRect(w/2+28*s, h-158*s, 22*s, 60*s); // right arm
 
-  // Star pattern on robe
-  ctx.fillStyle='rgba(255,220,0,0.6)';
-  ctx.font=`${14*s}px serif`; ctx.textAlign='center';
-  ctx.fillText('★', w/2-20*s, h-70*s);
-  ctx.fillText('★', w/2+18*s, h-55*s);
-  ctx.fillText('✦', w/2, h-90*s);
+  // Gun on right arm
+  ctx.fillStyle='#333';
+  ctx.fillRect(w/2+50*s, h-115*s, 35*s, 14*s); // gun body
+  ctx.fillStyle='#555';
+  ctx.fillRect(w/2+76*s, h-112*s, 24*s, 8*s);  // barrel
+  ctx.fillStyle='#222';
+  ctx.fillRect(w/2+52*s, h-104*s, 12*s, 10*s); // handle
+
+  // Gun glow
+  const gg=ctx.createRadialGradient(w/2+100*s,h-108*s,1,w/2+100*s,h-108*s,14*s);
+  gg.addColorStop(0,'rgba(100,200,255,0.8)');
+  gg.addColorStop(1,'transparent');
+  ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(w/2+100*s,h-108*s,14*s,0,Math.PI*2); ctx.fill();
+
+  // Neck
+  ctx.fillStyle='#f5c896';
+  ctx.fillRect(w/2-8*s, h-175*s, 16*s, 20*s);
 
   // Head
   ctx.fillStyle='#f5c896';
-  ctx.beginPath(); ctx.arc(w/2,h-150*s,28*s,0,Math.PI*2); ctx.fill();
-
+  ctx.fillRect(w/2-26*s, h-225*s, 52*s, 52*s);
   // Eyes
   ctx.fillStyle='#222';
-  ctx.beginPath(); ctx.arc(w/2-9*s,h-152*s,4*s,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w/2+9*s,h-152*s,4*s,0,Math.PI*2); ctx.fill();
-
+  ctx.fillRect(w/2-16*s, h-210*s, 10*s, 10*s);
+  ctx.fillRect(w/2+6*s,  h-210*s, 10*s, 10*s);
+  // Eye shine
+  ctx.fillStyle='#fff';
+  ctx.fillRect(w/2-14*s, h-208*s, 4*s, 4*s);
+  ctx.fillRect(w/2+8*s,  h-208*s, 4*s, 4*s);
   // Smile
-  ctx.strokeStyle='#222'; ctx.lineWidth=2*s;
-  ctx.beginPath(); ctx.arc(w/2,h-145*s,8*s,0.2,Math.PI-0.2); ctx.stroke();
+  ctx.fillStyle='#c8886a';
+  ctx.fillRect(w/2-8*s, h-196*s, 16*s, 5*s);
 
-  // Hat brim
-  ctx.fillStyle='#1a0a3a';
-  ctx.beginPath(); ctx.ellipse(w/2,h-176*s,36*s,9*s,0,0,Math.PI*2); ctx.fill();
+  // Helmet
+  ctx.fillStyle='#5500aa';
+  ctx.fillRect(w/2-28*s, h-230*s, 56*s, 12*s); // brim
+  ctx.fillRect(w/2-24*s, h-268*s, 48*s, 40*s); // cap
+  // Helmet visor
+  ctx.fillStyle='rgba(100,200,255,0.4)';
+  ctx.fillRect(w/2-20*s, h-248*s, 40*s, 22*s);
+  // Helmet star
+  ctx.fillStyle='#ffdd00';
+  ctx.font = (14*s)+'px serif'; ctx.textAlign='center';
+  ctx.fillText('★', w/2, h-242*s);
 
-  // Hat cone
-  ctx.fillStyle='#1a0a3a';
-  ctx.beginPath();
-  ctx.moveTo(w/2-28*s,h-176*s);
-  ctx.lineTo(w/2+28*s,h-176*s);
-  ctx.lineTo(w/2+2*s,h-260*s);
-  ctx.lineTo(w/2-2*s,h-260*s);
-  ctx.closePath(); ctx.fill();
-
-  // Hat star
-  ctx.fillStyle='#f0c040';
-  ctx.font=`${16*s}px serif`; ctx.textAlign='center';
-  ctx.fillText('⭐', w/2, h-215*s);
-
-  // Staff
-  ctx.strokeStyle='#6b4c2a'; ctx.lineWidth=6*s;
-  ctx.lineCap='round';
-  ctx.beginPath();
-  ctx.moveTo(w/2+60*s,h-30*s);
-  ctx.lineTo(w/2+72*s,h-230*s);
-  ctx.stroke();
-
-  // Staff crystal glow
-  const cg=ctx.createRadialGradient(w/2+72*s,h-235*s,2,w/2+72*s,h-235*s,20*s);
-  cg.addColorStop(0,'rgba(160,80,255,1)');
-  cg.addColorStop(.5,'rgba(100,40,200,.6)');
-  cg.addColorStop(1,'transparent');
-  ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(w/2+72*s,h-235*s,20*s,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#cc88ff';
-  ctx.font=`${18*s}px serif`; ctx.textAlign='center';
-  ctx.fillText('◆', w/2+72*s, h-228*s);
-
-  // Floating magic particles
+  // Floating coins/stars
   const now = Date.now();
-  for(let i=0;i<6;i++){
-    const t = (now/1200+i*1.1)%(Math.PI*2);
-    const px = w/2 + Math.cos(t+i)*65*s;
-    const py = h-150*s + Math.sin(t*1.3+i)*40*s - i*8*s;
-    const alpha = (Math.sin(now/600+i)+1)/2*.7+.3;
-    ctx.fillStyle=`rgba(200,120,255,${alpha})`;
-    ctx.font=`${(8+i%3*3)*s}px serif`;
-    ctx.fillText(['✦','★','◆','•','✧','⋆'][i], px, py);
+  for(let i=0;i<5;i++){
+    const t=(now/1000+i*1.3)%(Math.PI*2);
+    const px=w/2+Math.cos(t+i)*75*s;
+    const py=h-160*s+Math.sin(t*1.2+i)*55*s;
+    const alpha=(Math.sin(now/500+i)+1)/2*.6+.4;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=['#ffdd00','#00ddff','#ff6600','#44ff88','#ff44aa'][i];
+    ctx.font=(10*s)+'px serif';
+    ctx.fillText(['🌟','💥','⚡','🔵','🚀'][i], px, py);
   }
+  ctx.globalAlpha=1;
 }
+
 
 // Animate splash wizard
 let _splashAnimId = null;

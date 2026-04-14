@@ -7,10 +7,10 @@ const PLAYER_SPEED = 0.15;
 const PLAYER_MAX_HP = 100;
 
 const SPELLS = {
-  fireball:  { damage: 35, speed: 0.25, cooldown: 2000, color: 0xff4400, radius: 0.4, name: 'Fireball' },
-  iceshard:  { damage: 15, speed: 0.55, cooldown: 800,  color: 0x88ddff, radius: 0.2, name: 'Ice Shard' },
-  thunder:   { damage: 25, speed: 0.40, cooldown: 1400, color: 0xffee00, radius: 0.3, name: 'Thunderbolt', stun: 800 },
-  shield:    { damage: 0,  speed: 0,    cooldown: 8000, color: 0x00ff88, radius: 0,   name: 'Arcane Shield', duration: 3000 }
+  fireball:  { damage: 35, speed: 0.25, cooldown: 2000, color: 0xff6600, radius: 0.4, name: 'Rocket' },
+  iceshard:  { damage: 15, speed: 0.55, cooldown: 800,  color: 0x44ddff, radius: 0.2, name: 'Blaster' },
+  thunder:   { damage: 25, speed: 0.40, cooldown: 1400, color: 0xffee00, radius: 0.3, name: 'Zapper',   stun: 800 },
+  shield:    { damage: 0,  speed: 0,    cooldown: 8000, color: 0x00ff88, radius: 0,   name: 'Shield',    duration: 3000 }
 };
 
 // Waiting queue and active rooms
@@ -269,7 +269,7 @@ function setupGameSockets(io) {
         roomId, isPractice: true, started: true, winner: null,
         players: {
           [socket.id]: createPlayerState(socket.id, username, -8, 0, cosmetics),
-          [botId]:     createPlayerState(botId, 'Training Bot', 8, 0, {})
+          [botId]:     createPlayerState(botId, 'Bot Opponent', 8, 0, {})
         },
         projectiles: []
       };
