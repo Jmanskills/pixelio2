@@ -1,63 +1,25 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String, required: true, unique: true,
-    trim: true, minlength: 3, maxlength: 20
+{
+  "name": "pixelio",
+  "version": "1.0.0",
+  "description": "Pixelio — 1v1 Online Wizard Duel Game",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
   },
-  password: { type: String, required: true, minlength: 6 },
-  wins:   { type: Number, default: 0 },
-  losses: { type: Number, default: 0 },
-  coins:  { type: Number, default: 100 },
-
-  // Owned item IDs
-  inventory: { type: [String], default: ['robe_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'] },
-
-  // Equipped
-  equippedRobe:  { type: String, default: 'robe_default' },
-  equippedSpell: { type: String, default: 'spell_default' },
-  equippedTitle: { type: String, default: 'title_wizard' },
-
-  // Friends list & incoming requests
-  friends:        { type: [String], default: [] },
-  friendRequests: { type: [String], default: [] },
-
-  avatar: { type: String, default: 'wizard1' }, // avatar id
-  bio: { type: String, default: '', maxlength: 150 },
-  isAdmin: { type: Boolean, default: false },
-  isBanned: { type: Boolean, default: false },
-  banReason: { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now }
-});
-
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
-
-userSchema.methods.comparePassword = function (plain) {
-  return bcrypt.compare(plain, this.password);
-};
-
-userSchema.methods.safeProfile = function () {
-  return {
-    username: this.username,
-    wins: this.wins,
-    losses: this.losses,
-    coins: this.coins,
-    inventory: this.inventory,
-    equippedRobe: this.equippedRobe,
-    equippedSpell: this.equippedSpell,
-    equippedTitle: this.equippedTitle,
-    friends: this.friends,
-    friendRequests: this.friendRequests,
-    avatar: this.avatar,
-    bio: this.bio,
-    isAdmin: this.isAdmin,
-    isBanned: this.isBanned
-  };
-};
-
-module.exports = mongoose.model('User', userSchema);
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.3.1",
+    "socket.io": "^4.7.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

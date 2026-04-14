@@ -1,51 +1,76 @@
-// All purchasable items in Pixelio
-// category: 'robe' | 'spell' | 'title'
-// color: hex number used by Three.js for robes/spell effects
+# 🧙 Wizard Duel
 
-const SHOP_ITEMS = [
-  // ── ROBES ──────────────────────────────────────────────
-  { id: 'robe_default',   name: 'Apprentice Robe',  category: 'robe',  price: 0,    color: 0x6a0dad, preview: '#6a0dad', description: 'The classic purple robe.' },
-  { id: 'robe_crimson',   name: 'Crimson Robe',     category: 'robe',  price: 150,  color: 0xcc1122, preview: '#cc1122', description: 'Burn bright in battle.' },
-  { id: 'robe_ocean',     name: 'Ocean Robe',       category: 'robe',  price: 150,  color: 0x0066cc, preview: '#0066cc', description: 'Cool as the deep sea.' },
-  { id: 'robe_forest',    name: 'Forest Robe',      category: 'robe',  price: 150,  color: 0x1a7a2a, preview: '#1a7a2a', description: 'One with the wild.' },
-  { id: 'robe_gold',      name: 'Golden Robe',      category: 'robe',  price: 300,  color: 0xd4a017, preview: '#d4a017', description: 'For champions only.' },
-  { id: 'robe_shadow',    name: 'Shadow Robe',      category: 'robe',  price: 300,  color: 0x1a1a2e, preview: '#1a1a2e', description: 'Darkness made cloth.' },
-  { id: 'robe_rainbow',   name: 'Prism Robe',       category: 'robe',  price: 500,  color: 0xff44aa, preview: 'linear-gradient(135deg,#ff4466,#44aaff,#44ff88)', description: 'All the colors at once.' },
+A 1v1 online multiplayer wizard dueling game. Players battle in a fantasy outdoor arena using four unique spells.
 
-  // ── SPELL EFFECTS ───────────────────────────────────────
-  { id: 'spell_default',  name: 'Classic Magic',    category: 'spell', price: 0,    color: null, preview: '#9b30e8', description: 'Standard spell visuals.' },
-  { id: 'spell_lava',     name: 'Lava Magic',       category: 'spell', price: 200,  color: 0xff6600, preview: '#ff6600', description: 'Spells erupt like magma.' },
-  { id: 'spell_frost',    name: 'Frost Magic',      category: 'spell', price: 200,  color: 0x88eeff, preview: '#88eeff', description: 'Icy blue spell trails.' },
-  { id: 'spell_venom',    name: 'Venom Magic',      category: 'spell', price: 200,  color: 0x44ff44, preview: '#44ff44', description: 'Toxic green spells.' },
-  { id: 'spell_dark',     name: 'Dark Magic',       category: 'spell', price: 350,  color: 0x220033, preview: '#8800cc', description: 'Void-infused spells.' },
-  { id: 'spell_solar',    name: 'Solar Magic',      category: 'spell', price: 350,  color: 0xffdd00, preview: '#ffdd00', description: 'Pure sunlight energy.' },
+## Spells
+| Key | Spell | Damage | Cooldown | Effect |
+|-----|-------|--------|----------|--------|
+| Q | Fireball | 35 HP | 2.0s | Slow, heavy projectile |
+| E | Ice Shard | 15 HP | 0.8s | Fast, rapid-fire |
+| R | Thunderbolt | 25 HP | 1.4s | Medium speed + brief stun |
+| F | Arcane Shield | — | 8.0s | Blocks all damage for 3s |
 
-  // ── TITLES ──────────────────────────────────────────────
-  { id: 'title_wizard',     name: 'Wizard',         category: 'title', price: 0,    preview: '#f0c040', description: 'You are a wizard.' },
-  { id: 'title_apprentice', name: 'Apprentice',     category: 'title', price: 0,    preview: '#aaaaaa', description: 'Still learning the craft.' },
-  { id: 'title_champion',   name: 'Champion',       category: 'title', price: 400,  preview: '#f0c040', description: 'Proven in battle.' },
-  { id: 'title_archmage',   name: 'Archmage',       category: 'title', price: 600,  preview: '#9b30e8', description: 'Master of all spells.' },
-  { id: 'title_phantom',    name: 'Phantom',        category: 'title', price: 600,  preview: '#aaddff', description: 'A ghost in the arena.' },
-  { id: 'title_stormcaller',name: 'Stormcaller',    category: 'title', price: 800,  preview: '#ffee00', description: 'Lightning answers your call.' },
-  { id: 'title_legend',     name: 'Legend',         category: 'title', price: 1000, preview: '#ff8800', description: 'Songs are sung of you.' },
-];
+## Controls
+- **WASD** — Move
+- **Mouse** — Aim direction (click canvas to lock cursor)
+- **Q / E / R / F** — Cast spells
 
-module.exports = SHOP_ITEMS;
+## Tech Stack
+- **Frontend:** Three.js (3D rendering in browser)
+- **Backend:** Node.js + Express + Socket.io
+- **Database:** MongoDB Atlas
+- **Hosting:** Railway
 
+---
 
-// ── EMOTES ─────────────────────────────────────────────
-// Note: wave and gg are free starter emotes
-// id must match EMOTE_DEFS keys on the client
-const EMOTE_ITEMS = [
-  { id: 'emote_wave',  name: 'Wave',   category: 'emote', price: 0,   preview: '👋', description: 'A friendly greeting.' },
-  { id: 'emote_gg',    name: 'GG',     category: 'emote', price: 0,   preview: '🤝', description: 'Good game, respect.' },
-  { id: 'emote_laugh', name: 'Laugh',  category: 'emote', price: 100, preview: '😂', description: 'Can\'t stop laughing.' },
-  { id: 'emote_flex',  name: 'Flex',   category: 'emote', price: 150, preview: '💪', description: 'Show off your power.' },
-  { id: 'emote_angry', name: 'Angry',  category: 'emote', price: 100, preview: '😤', description: 'Express your rage.' },
-  { id: 'emote_dance', name: 'Dance',  category: 'emote', price: 200, preview: '🕺', description: 'Victory dance!' },
-  { id: 'emote_think', name: 'Think',  category: 'emote', price: 100, preview: '🤔', description: 'Hmm, interesting...' },
-  { id: 'emote_fire',  name: 'Hype',   category: 'emote', price: 200, preview: '🔥', description: 'Pure hype energy.' },
-];
+## Setup Instructions
 
-// Merge into main export
-SHOP_ITEMS.push(...EMOTE_ITEMS);
+### 1. MongoDB Atlas
+1. Create a free account at [mongodb.com/atlas](https://mongodb.com/atlas)
+2. Create a new cluster (free tier is fine)
+3. Create a database user with a password
+4. Whitelist all IPs: `0.0.0.0/0`
+5. Copy your connection string — it looks like:
+   `mongodb+srv://username:password@cluster.mongodb.net/wizard-duel`
+
+### 2. GitHub
+1. Create a new repository on GitHub
+2. Upload all files from this zip (maintain the folder structure)
+3. Push to main branch
+
+### 3. Railway
+1. Create account at [railway.app](https://railway.app)
+2. New Project → Deploy from GitHub repo → select your repo
+3. In the project settings, add these **Environment Variables**:
+   - `MONGODB_URI` = your MongoDB connection string from step 1
+   - `JWT_SECRET` = any long random string (e.g. `MySecretWizardKey2024!`)
+   - `PORT` = `3000` (Railway sets this automatically, but good to have)
+4. Deploy — Railway will auto-build using the `package.json`
+
+### 4. Play
+- Share the Railway-generated URL with your opponent
+- Both players register/login and click **Start Game**
+- First to empty opponent's HP wins!
+
+---
+
+## Project Structure
+```
+wizard-duel/
+├── server/
+│   ├── index.js          # Express + Socket.io server
+│   ├── game.js           # Game logic, matchmaking, tick loop
+│   ├── routes/
+│   │   └── auth.js       # Register/login endpoints
+│   └── models/
+│       └── User.js       # MongoDB user schema
+├── public/
+│   ├── index.html        # All screens (menu, auth, game, gameover)
+│   ├── css/
+│   │   └── style.css     # Full fantasy UI styling
+│   └── js/
+│       └── game.js       # Three.js rendering + client game logic
+├── package.json
+├── railway.toml          # Railway deployment config
+└── .env.example          # Environment variable template
+```

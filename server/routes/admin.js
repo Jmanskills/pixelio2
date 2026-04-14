@@ -7,7 +7,6 @@ const SHOP_ITEMS = require('../shopItems');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'pixelio-secret';
 
-// ── Admin auth middleware ─────────────────────────────
 async function adminAuth(req, res, next) {
   try {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -19,8 +18,7 @@ async function adminAuth(req, res, next) {
   } catch { res.status(401).json({ error: 'Unauthorized.' }); }
 }
 
-// ── Users ─────────────────────────────────────────────
-// GET /api/admin/users?search=xxx
+// GET /api/admin/users
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const q = req.query.search ? { username: new RegExp(req.query.search, 'i') } : {};
@@ -29,7 +27,7 @@ router.get('/users', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/ban { username, reason }
+// POST /api/admin/ban
 router.post('/ban', adminAuth, async (req, res) => {
   try {
     const { username, reason } = req.body;
@@ -43,7 +41,7 @@ router.post('/ban', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/unban { username }
+// POST /api/admin/unban
 router.post('/unban', adminAuth, async (req, res) => {
   try {
     const { username } = req.body;
@@ -52,7 +50,7 @@ router.post('/unban', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/makeadmin { username }
+// POST /api/admin/makeadmin
 router.post('/makeadmin', adminAuth, async (req, res) => {
   try {
     const { username } = req.body;
@@ -62,7 +60,7 @@ router.post('/makeadmin', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/removeadmin { username }
+// POST /api/admin/removeadmin
 router.post('/removeadmin', adminAuth, async (req, res) => {
   try {
     const { username } = req.body;
@@ -72,7 +70,7 @@ router.post('/removeadmin', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/giveitem { username, itemId }
+// POST /api/admin/giveitem
 router.post('/giveitem', adminAuth, async (req, res) => {
   try {
     const { username, itemId } = req.body;
@@ -80,15 +78,12 @@ router.post('/giveitem', adminAuth, async (req, res) => {
     if (!item) return res.status(404).json({ error: 'Item not found.' });
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    if (!user.inventory.includes(itemId)) {
-      user.inventory.push(itemId);
-      await user.save();
-    }
+    if (!user.inventory.includes(itemId)) { user.inventory.push(itemId); await user.save(); }
     res.json({ message: `Gave ${item.name} to ${username}.` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/givecoins { username, amount }
+// POST /api/admin/givecoins
 router.post('/givecoins', adminAuth, async (req, res) => {
   try {
     const { username, amount } = req.body;
@@ -98,7 +93,20 @@ router.post('/givecoins', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Reports ──────────────────────────────────────────
+// POST /api/admin/kick
+router.post('/kick', adminAuth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const { getOnlineUsers, getIO } = require('../game');
+    const onlineUsers = getOnlineUsers();
+    const io = getIO();
+    const socketId = onlineUsers[username];
+    if (!socketId || !io) return res.status(404).json({ error: 'Player not online.' });
+    io.to(socketId).emit('kicked', { reason: 'You were kicked by an admin.' });
+    res.json({ message: `${username} has been kicked.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/admin/reports
 router.get('/reports', adminAuth, async (req, res) => {
   try {
@@ -107,7 +115,7 @@ router.get('/reports', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/reports/:id/status { status }
+// POST /api/admin/reports/:id/status
 router.post('/reports/:id/status', adminAuth, async (req, res) => {
   try {
     await Report.findByIdAndUpdate(req.params.id, { status: req.body.status });
@@ -115,8 +123,7 @@ router.post('/reports/:id/status', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── News ─────────────────────────────────────────────
-// GET /api/admin/news (public — also used by news tab)
+// GET /api/admin/news (public)
 router.get('/news', async (req, res) => {
   try {
     const news = await News.find().sort({ pinned: -1, createdAt: -1 }).limit(20);
@@ -124,7 +131,7 @@ router.get('/news', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/news { title, body, pinned }
+// POST /api/admin/news
 router.post('/news', adminAuth, async (req, res) => {
   try {
     const { title, body, pinned } = req.body;
@@ -144,17 +151,3 @@ router.delete('/news/:id', adminAuth, async (req, res) => {
 });
 
 module.exports = router;
-
-// POST /api/admin/kick { username } — disconnect player from game
-router.post('/kick', adminAuth, async (req, res) => {
-  try {
-    const { username } = req.body;
-    const { getOnlineUsers, getIO } = require('../game');
-    const onlineUsers = getOnlineUsers();
-    const io = getIO();
-    const socketId = onlineUsers[username];
-    if (!socketId || !io) return res.status(404).json({ error: 'Player not online.' });
-    io.to(socketId).emit('kicked', { reason: 'You were kicked by an admin.' });
-    res.json({ message: `${username} has been kicked.` });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
