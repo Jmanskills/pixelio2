@@ -29,11 +29,24 @@ function spawnParticles(containerId) {
 }
 
 // ── Auth ──────────────────────────────────────────────
+function openAuthModal(tab) {
+  switchTab(tab || 'login');
+  document.getElementById('auth-error').classList.add('hidden');
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('auth-username').focus(), 100);
+}
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+}
+
 async function tryAutoLogin() {
   const saved = localStorage.getItem('pixelio_token');
   if(!saved) return false;
-  document.getElementById('splash-auth-wrap').classList.add('hidden');
-  document.getElementById('splash-loading').classList.remove('hidden');
+  // Show loading overlay
+  const loading = document.getElementById('splash-loading');
+  if(loading) { loading.classList.remove('hidden'); }
   try {
     const res = await fetch('/api/auth/me', { headers:{ Authorization:'Bearer '+saved } });
     if(!res.ok) throw new Error('invalid');
@@ -43,8 +56,7 @@ async function tryAutoLogin() {
     enterMainMenu(); return true;
   } catch {
     localStorage.removeItem('pixelio_token');
-    document.getElementById('splash-auth-wrap').classList.remove('hidden');
-    document.getElementById('splash-loading').classList.add('hidden');
+    if(loading) loading.classList.add('hidden');
     return false;
   }
 }
@@ -55,27 +67,34 @@ async function doAuth() {
   const errEl = document.getElementById('auth-error'); errEl.classList.add('hidden');
   if(!username||!password){errEl.textContent='Please enter username and password.';errEl.classList.remove('hidden');return;}
   const endpoint = currentTab==='login'?'/api/auth/login':'/api/auth/register';
+  const btn = document.getElementById('btn-auth-submit');
+  btn.disabled = true; btn.textContent = 'Loading...';
   try {
     const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
     const data = await res.json();
-    if(!res.ok){errEl.textContent=data.error||'Authentication failed.';errEl.classList.remove('hidden');return;}
+    if(!res.ok){errEl.textContent=data.error||'Authentication failed.';errEl.classList.remove('hidden');btn.disabled=false;btn.textContent='Enter the Arena';return;}
     authToken=data.token; profile=data.profile;
     localStorage.setItem('pixelio_token',authToken);
+    closeAuthModal();
     await loadShopCatalog(); enterMainMenu();
-  } catch {errEl.textContent='Network error. Try again.';errEl.classList.remove('hidden');}
+  } catch {
+    errEl.textContent='Network error. Try again.';errEl.classList.remove('hidden');
+    btn.disabled=false; btn.textContent='Enter the Arena';
+  }
 }
 
 function logout() {
   localStorage.removeItem('pixelio_token');
   authToken=null; profile=null; myId=null;
   if(socket){socket.disconnect();socket=null;}
+  const loading=document.getElementById('splash-loading'); if(loading)loading.classList.add('hidden');
   showScreen('screen-splash');
-  document.getElementById('splash-auth-wrap').classList.remove('hidden');
-  document.getElementById('splash-loading').classList.add('hidden');
+  drawSplashWizard();
 }
 
 // ── Main Menu ─────────────────────────────────────────
 function enterMainMenu() {
+  stopSplashAnimation();
   updateMenuUI();
   showScreen('screen-mainmenu');
   spawnParticles('menu-particles');
@@ -606,7 +625,7 @@ function connectSocket(){
   socket.on('shieldBlocked',({playerId})=>{const m=playerMeshes[playerId];if(m&&m.userData.shield){m.userData.shield.visible=true;setTimeout(()=>{if(m.userData.shield)m.userData.shield.visible=false;},400);} });
   socket.on('gameOver',({winnerId,winnerName,coinsEarned})=>{const iWon=winnerId===myId;const earned=coinsEarned?(coinsEarned[myId]||0):0;if(earned>0)profile.coins+=earned;endGame(iWon,winnerName,false,earned);});
   socket.on('opponentDisconnected',()=>endGame(true,profile.username,true,50));
-  socket.on('kicked',({reason})=>{gameRunning=false;if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}hideGameOver();socket.disconnect();socket=null;alert('⚠️ '+(reason||'You were kicked by an admin.'));showScreen('screen-splash');document.getElementById('splash-auth-wrap').classList.remove('hidden');document.getElementById('splash-loading').classList.add('hidden');localStorage.removeItem('pixelio_token');});
+  socket.on('kicked',({reason})=>{gameRunning=false;if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}hideGameOver();socket.disconnect();socket=null;alert('⚠️ '+(reason||'You were kicked by an admin.'));showScreen('screen-splash');const sl=document.getElementById('splash-loading');if(sl)sl.classList.add('hidden');drawSplashWizard();localStorage.removeItem('pixelio_token');});
   socket.on('matchDraw',({quitterName})=>{endGame(null,null,false,0,quitterName);});
   socket.on('reportReceived',({message})=>{showReportConfirmation(message);});
   socket.on('opponentEmote',({emoteKey,fromId})=>{playEmote(emoteKey,fromId);});
@@ -646,15 +665,153 @@ async function apiFetch(url,method,body){
   }catch(e){console.error('apiFetch:',e);return null;}
 }
 
+
+// ── Splash Wizard ─────────────────────────────────────
+function drawSplashWizard() {
+  const canvas = document.getElementById('splash-wizard-canvas');
+  if(!canvas) return;
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+
+  // Glow background
+  const grd = ctx.createRadialGradient(w/2,h*.55,20,w/2,h*.55,w*.55);
+  grd.addColorStop(0,'rgba(180,80,255,0.35)');
+  grd.addColorStop(1,'transparent');
+  ctx.fillStyle = grd; ctx.fillRect(0,0,w,h);
+
+  const s = w/200; // scale
+
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(w/2,h-20*s,50*s,12*s,0,0,Math.PI*2); ctx.fill();
+
+  // Robe (large)
+  ctx.fillStyle='#7b00d4';
+  ctx.beginPath();
+  ctx.moveTo(w/2-45*s,h-25*s);
+  ctx.lineTo(w/2+45*s,h-25*s);
+  ctx.lineTo(w/2+55*s,h-25*s);
+  ctx.lineTo(w/2+48*s,h-130*s);
+  ctx.lineTo(w/2-48*s,h-130*s);
+  ctx.lineTo(w/2-55*s,h-25*s);
+  ctx.closePath(); ctx.fill();
+
+  // Robe shading
+  ctx.fillStyle='rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(w/2+5*s,h-25*s);
+  ctx.lineTo(w/2+55*s,h-25*s);
+  ctx.lineTo(w/2+48*s,h-130*s);
+  ctx.lineTo(w/2+5*s,h-130*s);
+  ctx.closePath(); ctx.fill();
+
+  // Robe highlight
+  ctx.fillStyle='rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.moveTo(w/2-5*s,h-25*s);
+  ctx.lineTo(w/2-55*s,h-25*s);
+  ctx.lineTo(w/2-48*s,h-130*s);
+  ctx.lineTo(w/2-5*s,h-130*s);
+  ctx.closePath(); ctx.fill();
+
+  // Star pattern on robe
+  ctx.fillStyle='rgba(255,220,0,0.6)';
+  ctx.font=`${14*s}px serif`; ctx.textAlign='center';
+  ctx.fillText('★', w/2-20*s, h-70*s);
+  ctx.fillText('★', w/2+18*s, h-55*s);
+  ctx.fillText('✦', w/2, h-90*s);
+
+  // Head
+  ctx.fillStyle='#f5c896';
+  ctx.beginPath(); ctx.arc(w/2,h-150*s,28*s,0,Math.PI*2); ctx.fill();
+
+  // Eyes
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(w/2-9*s,h-152*s,4*s,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w/2+9*s,h-152*s,4*s,0,Math.PI*2); ctx.fill();
+
+  // Smile
+  ctx.strokeStyle='#222'; ctx.lineWidth=2*s;
+  ctx.beginPath(); ctx.arc(w/2,h-145*s,8*s,0.2,Math.PI-0.2); ctx.stroke();
+
+  // Hat brim
+  ctx.fillStyle='#1a0a3a';
+  ctx.beginPath(); ctx.ellipse(w/2,h-176*s,36*s,9*s,0,0,Math.PI*2); ctx.fill();
+
+  // Hat cone
+  ctx.fillStyle='#1a0a3a';
+  ctx.beginPath();
+  ctx.moveTo(w/2-28*s,h-176*s);
+  ctx.lineTo(w/2+28*s,h-176*s);
+  ctx.lineTo(w/2+2*s,h-260*s);
+  ctx.lineTo(w/2-2*s,h-260*s);
+  ctx.closePath(); ctx.fill();
+
+  // Hat star
+  ctx.fillStyle='#f0c040';
+  ctx.font=`${16*s}px serif`; ctx.textAlign='center';
+  ctx.fillText('⭐', w/2, h-215*s);
+
+  // Staff
+  ctx.strokeStyle='#6b4c2a'; ctx.lineWidth=6*s;
+  ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(w/2+60*s,h-30*s);
+  ctx.lineTo(w/2+72*s,h-230*s);
+  ctx.stroke();
+
+  // Staff crystal glow
+  const cg=ctx.createRadialGradient(w/2+72*s,h-235*s,2,w/2+72*s,h-235*s,20*s);
+  cg.addColorStop(0,'rgba(160,80,255,1)');
+  cg.addColorStop(.5,'rgba(100,40,200,.6)');
+  cg.addColorStop(1,'transparent');
+  ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(w/2+72*s,h-235*s,20*s,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#cc88ff';
+  ctx.font=`${18*s}px serif`; ctx.textAlign='center';
+  ctx.fillText('◆', w/2+72*s, h-228*s);
+
+  // Floating magic particles
+  const now = Date.now();
+  for(let i=0;i<6;i++){
+    const t = (now/1200+i*1.1)%(Math.PI*2);
+    const px = w/2 + Math.cos(t+i)*65*s;
+    const py = h-150*s + Math.sin(t*1.3+i)*40*s - i*8*s;
+    const alpha = (Math.sin(now/600+i)+1)/2*.7+.3;
+    ctx.fillStyle=`rgba(200,120,255,${alpha})`;
+    ctx.font=`${(8+i%3*3)*s}px serif`;
+    ctx.fillText(['✦','★','◆','•','✧','⋆'][i], px, py);
+  }
+}
+
+// Animate splash wizard
+let _splashAnimId = null;
+function startSplashAnimation() {
+  if(_splashAnimId) cancelAnimationFrame(_splashAnimId);
+  const canvas = document.getElementById('splash-wizard-canvas');
+  if(!canvas) return;
+  function loop() {
+    drawSplashWizard();
+    _splashAnimId = requestAnimationFrame(loop);
+  }
+  loop();
+}
+function stopSplashAnimation() {
+  if(_splashAnimId){ cancelAnimationFrame(_splashAnimId); _splashAnimId=null; }
+}
 // ══════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   spawnParticles('particles');
+  startSplashAnimation();
 
-  // Auth
+  // Auth modal
   document.getElementById('btn-auth-submit').addEventListener('click', doAuth);
   document.getElementById('auth-password').addEventListener('keydown', e => { if(e.key==='Enter') doAuth(); });
+  document.getElementById('btn-auth-close').addEventListener('click', closeAuthModal);
+  // Close modal on backdrop click
+  document.getElementById('auth-modal').addEventListener('click', e => { if(e.target===document.getElementById('auth-modal')) closeAuthModal(); });
   document.getElementById('btn-logout').addEventListener('click', logout);
 
   // Play
