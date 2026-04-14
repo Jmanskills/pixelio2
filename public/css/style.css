@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&family=Press+Start+2P&display=swap');
 
 :root {
   --gold: #f0c040;
@@ -633,12 +633,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
   .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
 }
 
-/* ══════════ NEW SPLASH SCREEN ══════════ */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* ══════════ SPLASH SCREEN — pixel style matching mockup ══════════ */
 
 #screen-splash {
   flex-direction: column;
-  background: #7b00d4;
+  background: #8800ee;
   overflow: hidden;
 }
 
@@ -649,37 +648,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  height: 72px;
-  background: rgba(80, 0, 140, 0.85);
-  border-bottom: 2px solid rgba(255,255,255,0.12);
+  padding: 0 28px;
+  height: 68px;
+  background: #5500aa;
   flex-shrink: 0;
 }
 .splash-nav-logo {
   font-family: 'Press Start 2P', monospace;
-  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-size: clamp(1rem, 2.5vw, 1.6rem);
   color: #fff;
-  letter-spacing: 2px;
-  text-shadow: 0 0 20px rgba(255,255,255,0.4);
+  letter-spacing: 1px;
 }
 .splash-nav-links {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 32px;
 }
 .splash-nav-btn {
   font-family: 'Press Start 2P', monospace;
-  font-size: .75rem;
+  font-size: .7rem;
   color: #fff;
   background: transparent;
   border: none;
   cursor: pointer;
   letter-spacing: 1px;
-  opacity: 0.85;
-  transition: opacity .2s;
-  padding: 8px 0;
+  padding: 8px 4px;
+  transition: opacity .15s;
+  opacity: 0.9;
 }
-.splash-nav-btn:hover { opacity: 1; }
+.splash-nav-btn:hover { opacity: 1; text-decoration: underline; }
 
 /* ── Hero ── */
 .splash-hero {
@@ -687,82 +684,90 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
   z-index: 3;
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 40px 60px;
-  gap: 40px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: clamp(24px, 5vw, 60px) clamp(20px, 5vw, 60px);
+  gap: 32px;
   width: 100%;
+  box-sizing: border-box;
 }
 .splash-hero-left {
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  max-width: 580px;
+  justify-content: space-between;
+  height: 100%;
+  gap: 32px;
+  flex: 1;
 }
 .splash-tagline {
   font-family: 'Press Start 2P', monospace;
-  font-size: clamp(.85rem, 1.8vw, 1.15rem);
+  font-size: clamp(.75rem, 2vw, 1.1rem);
   color: #fff;
-  line-height: 2;
-  letter-spacing: 0;
-  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  line-height: 2.2;
+  max-width: 700px;
 }
 .splash-hero-btns {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   flex-wrap: wrap;
+  align-items: center;
+  padding-bottom: clamp(20px, 4vw, 40px);
 }
 .splash-hero-btn {
   font-family: 'Press Start 2P', monospace;
-  font-size: .8rem;
-  padding: 18px 32px;
+  font-size: clamp(.65rem, 1.2vw, .85rem);
+  padding: 18px 28px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all .15s;
-  letter-spacing: 1px;
-  border: 3px solid rgba(0,0,0,0.2);
-  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
-}
-.splash-hero-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.25); }
-.splash-hero-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
-
-.splash-hero-btn-register {
-  background: #5a5a5a;
+  transition: all .12s;
+  letter-spacing: 0;
+  background: #808080;
   color: #fff;
+  border: 3px solid rgba(0,0,0,0.3);
+  box-shadow: 0 5px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+  min-width: 140px;
+  text-align: center;
 }
-.splash-hero-btn-register:hover { background: #6a6a6a; }
-
-.splash-hero-btn-login {
-  background: #6a6a6a;
-  color: #fff;
+.splash-hero-btn:hover {
+  background: #909090;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
 }
-.splash-hero-btn-login:hover { background: #7a7a7a; }
+.splash-hero-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+.splash-hero-btn-register { background: #707070; }
+.splash-hero-btn-register:hover { background: #808080; }
+.splash-hero-btn-login { background: #808080; }
+.splash-hero-btn-login:hover { background: #909090; }
 
 .splash-hero-right {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
 }
 #splash-wizard-canvas {
-  filter: drop-shadow(0 0 40px rgba(255,255,255,0.25));
   display: block;
+  filter: drop-shadow(0 4px 24px rgba(0,0,0,0.4));
 }
 
 /* ── Auth Modal ── */
 .auth-modal-box {
-  max-width: 380px;
+  max-width: 400px;
   gap: 16px;
+  background: #1a0a2e;
+  border-color: #9b30e8;
 }
 .auth-modal-logo {
   font-family: 'Press Start 2P', monospace;
-  font-size: 1rem;
+  font-size: .95rem;
   color: #fff;
   text-align: center;
+  letter-spacing: 1px;
   margin-bottom: 4px;
-  letter-spacing: 2px;
 }
 .auth-modal-tabs {
   display: flex;
@@ -772,28 +777,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
   overflow: hidden;
 }
 .auth-modal-close {
-  font-family: 'Cinzel', serif;
-  font-size: .8rem;
+  font-family: 'Press Start 2P', monospace;
+  font-size: .65rem;
   color: var(--gray);
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
   transition: color .2s;
   align-self: center;
+  letter-spacing: 1px;
 }
-.auth-modal-close:hover { color: var(--white); }
+.auth-modal-close:hover { color: #ff8888; }
 
-/* Particles on purple bg */
-#screen-splash .particle {
-  opacity: 0.5;
+/* Loading overlay */
+#splash-loading {
+  position: absolute;
+  inset: 0;
+  background: #8800ee;
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.splash-loading-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: .75rem;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 1px;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .splash-hero { flex-direction: column; padding: 24px 24px; align-items: flex-start; }
+@media (max-width: 700px) {
+  .splash-hero { flex-direction: column; align-items: flex-start; }
   .splash-hero-right { display: none; }
-  .splash-tagline { font-size: .7rem; }
-  .splash-navbar { padding: 0 20px; }
-  .splash-nav-logo { font-size: 1rem; }
+  .splash-navbar { padding: 0 16px; height: 56px; }
+  .splash-nav-logo { font-size: .9rem; }
+  .splash-tagline { font-size: .6rem; }
+  .splash-hero-btn { font-size: .6rem; padding: 14px 20px; min-width: 110px; }
 }
