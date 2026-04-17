@@ -4,11 +4,11 @@
 
 // ── State ────────────────────────────────────────────
 let socket = null, myId = null, profile = null, authToken = null;
-let shopCatalog = [], currentShopTab = 'robe', currentTab = 'login';
+let shopCatalog = [], currentShopTab = 'skin', currentTab = 'login';
 let pendingInviteFrom = null;
 let onlineFriends = new Set();
 
-const ROBE_COLORS  = { robe_default:0x6a0dad, robe_crimson:0xcc1122, robe_ocean:0x0066cc, robe_forest:0x1a7a2a, robe_gold:0xd4a017, robe_shadow:0x1a1a2e, robe_rainbow:0xff44aa };
+const SKIN_COLORS = { skin_default:0x6a0dad, skin_crimson:0xcc1122, skin_ocean:0x0066cc, skin_forest:0x1a7a2a, skin_gold:0xd4a017, skin_shadow:0x1a1a2e, skin_rainbow:0xff44aa };
 const SPELL_COLORS = { spell_default:null, spell_lava:0xff6600, spell_frost:0x88eeff, spell_venom:0x44ff44, spell_dark:0x220033, spell_solar:0xffdd00 };
 
 // ── Screens ───────────────────────────────────────────
@@ -127,7 +127,7 @@ function updateMenuUI() {
   const titleItem = shopCatalog.find(i=>i.id===profile.equippedTitle);
   document.getElementById('menu-title-badge').textContent = titleItem?titleItem.name:'Wizard';
   document.getElementById('lobby-username').textContent = profile.username;
-  const robeColor = hexToCSS(ROBE_COLORS[profile.equippedRobe]||0x6a0dad);
+  const robeColor = hexToCSS(SKIN_COLORS[profile.equippedSkin]||0x6a0dad);
   const av = document.getElementById('avatar-robe');
   av.style.cssText=`background:${robeColor};display:flex;align-items:center;justify-content:center;font-size:1.4rem;`;
   av.textContent='🧙';
@@ -152,7 +152,7 @@ function renderPreviewCanvas() {
   const canvas=document.getElementById('preview-canvas'); if(!canvas)return;
   const ctx=canvas.getContext('2d'); const w=canvas.width,h=canvas.height;
   ctx.clearRect(0,0,w,h);
-  const robeHex=ROBE_COLORS[profile?profile.equippedRobe:'robe_default']||0x6a0dad;
+  const robeHex=SKIN_COLORS[profile?profile.equippedSkin:'skin_default']||0x6a0dad;
   const c=hexToCSS(robeHex);
   const s=w/120;
   // Glow
@@ -206,11 +206,11 @@ function renderShop() {
   const items=shopCatalog.filter(i=>i.category===currentShopTab);
   items.forEach(item=>{
     const owned=profile.inventory.includes(item.id);
-    const equipped=(item.category==='robe'&&profile.equippedRobe===item.id)||(item.category==='spell'&&profile.equippedSpell===item.id)||(item.category==='title'&&profile.equippedTitle===item.id);
+    const equipped=(item.category==='skin'&&profile.equippedSkin===item.id)||(item.category==='spell'&&profile.equippedSpell===item.id)||(item.category==='title'&&profile.equippedTitle===item.id);
     const card=document.createElement('div');
     card.className='shop-item'+(owned?' owned':'')+(equipped?' equipped':'');
     const preview=document.createElement('div'); preview.className='shop-preview';
-    if(item.category==='robe'){preview.style.background=hexToCSS(item.color||0x6a0dad);preview.textContent='🧙';}
+    if(item.category==='skin'){preview.style.background=hexToCSS(item.color||0x6a0dad);preview.textContent='🧙';}
     else if(item.category==='spell'){preview.style.background=item.color?hexToCSS(item.color):'#9b30e8';preview.textContent='✨';}
     else if(item.category==='emote'){preview.style.background='#1a1030';preview.style.fontSize='1.8rem';preview.textContent=item.preview||'😄';}
     else{preview.style.background=item.preview||'#f0c040';preview.textContent='🏷️';}
@@ -485,7 +485,7 @@ function startPractice() {
   document.getElementById('lobby-msg').textContent='Setting up your training match...';
   showScreen('screen-lobby');
   setTimeout(()=>{
-    socket.emit('startPractice',{username:profile.username,token:authToken,cosmetics:{equippedRobe:profile.equippedRobe,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
+    socket.emit('startPractice',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
   },300);
 }
 
@@ -504,7 +504,10 @@ function initThree() {
   const canvas=document.getElementById('game-canvas');
   renderer=new THREE.WebGLRenderer({canvas,antialias:true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.shadowMap.enabled=true; renderer.setClearColor(0x0a0518);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0x0a0518);
+  renderer.physicallyCorrectLights=true;
   scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x0a0518,30,80);
   camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,.1,200);
   camera.position.set(0,CAMERA_HEIGHT,CAMERA_DIST); camera.lookAt(0,0,0);
@@ -523,39 +526,81 @@ function buildArena() {
   (function ac(){const t=Date.now()*.001;crystal.rotation.y=t;crystal.position.y=3.4+Math.sin(t*2)*.08;cl.intensity=1.2+Math.sin(t*3)*.3;requestAnimationFrame(ac);})();
 }
 function addTrees(){const tm=new THREE.MeshLambertMaterial({color:0x5a3a1a}),lm=new THREE.MeshLambertMaterial({color:0x1a5c2a});[[-18,-18],[18,-18],[-18,18],[18,18],[0,-22],[0,22],[-22,0],[22,0],[-14,-24],[14,-24],[-24,14],[24,-14]].forEach(([x,z])=>{const h=4+Math.random()*3;const tr=new THREE.Mesh(new THREE.CylinderGeometry(.2,.35,h,6),tm);tr.position.set(x,h/2,z);tr.castShadow=true;scene.add(tr);for(let i=0;i<3;i++){const lf=new THREE.Mesh(new THREE.ConeGeometry(2-i*.3,2,7),lm);lf.position.set(x,h-.5+i*1.4,z);lf.castShadow=true;scene.add(lf);}});}
-function addLights(){scene.add(new THREE.AmbientLight(0x334466,.8));const moon=new THREE.DirectionalLight(0x8899bb,.6);moon.position.set(10,20,10);moon.castShadow=true;scene.add(moon);const r1=new THREE.PointLight(0x4400aa,.8,40);r1.position.set(-15,8,-15);scene.add(r1);const r2=new THREE.PointLight(0x004488,.8,40);r2.position.set(15,8,15);scene.add(r2);}
+function addLights(){scene.add(new THREE.AmbientLight(0x6688aa,1.2));const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(8,20,10);sun.castShadow=true;sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;scene.add(sun);const fill=new THREE.DirectionalLight(0x4466aa,.6);fill.position.set(-8,10,-8);scene.add(fill);const r1=new THREE.PointLight(0x5500cc,.6,35);r1.position.set(-15,8,-15);scene.add(r1);const r2=new THREE.PointLight(0x0055aa,.6,35);r2.position.set(15,8,15);scene.add(r2);}
 function addSkybox(){const sky=new THREE.Mesh(new THREE.SphereGeometry(100,16,8),new THREE.MeshBasicMaterial({color:0x050312,side:THREE.BackSide}));scene.add(sky);const sv=[];for(let i=0;i<800;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=90;sv.push(r*Math.sin(p)*Math.cos(t),r*Math.cos(p),r*Math.sin(p)*Math.sin(t));}const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.3})));}
 
-function createWizardMesh(robeItemId,spellItemId){
-  // NOTE: Player model will be replaced with your custom 3D model.
-  // This is a placeholder blocky character in the meantime.
-  const rc=ROBE_COLORS[robeItemId]||0x6a0dad;
-  const sc=SPELL_COLORS[spellItemId]||rc;
-  const g=new THREE.Group();
-  const bodyMat=new THREE.MeshLambertMaterial({color:rc});
-  const skinMat=new THREE.MeshLambertMaterial({color:0xf5c896});
-  const darkMat=new THREE.MeshLambertMaterial({color:0x222233});
-  // Body (torso)
-  const body=new THREE.Mesh(new THREE.BoxGeometry(.7,1.0,.5),bodyMat);body.position.y=.9;body.castShadow=true;g.add(body);
-  // Legs
-  const legL=new THREE.Mesh(new THREE.BoxGeometry(.3,.8,.4),darkMat);legL.position.set(-.18,.2,.0);legL.castShadow=true;g.add(legL);
-  const legR=new THREE.Mesh(new THREE.BoxGeometry(.3,.8,.4),darkMat);legR.position.set( .18,.2,.0);legR.castShadow=true;g.add(legR);
-  // Head
-  const head=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),skinMat);head.position.y=1.7;head.castShadow=true;g.add(head);
-  // Helmet/cap
-  const helm=new THREE.Mesh(new THREE.BoxGeometry(.6,.25,.6),bodyMat);helm.position.y=2.0;g.add(helm);
+function createWizardMesh(skinItemId, spellItemId){
+  // Smooth rounded player character — replace with your custom model when ready
+  const sc = SKIN_COLORS[skinItemId]  || 0x6a0dad;
+  const gc = SPELL_COLORS[spellItemId] || sc;
+  const g  = new THREE.Group();
+
+  const bodyMat = new THREE.MeshPhongMaterial({ color:sc, shininess:60 });
+  const darkMat = new THREE.MeshPhongMaterial({ color:0x223344, shininess:40 });
+  const skinMat = new THREE.MeshPhongMaterial({ color:0xf5c896, shininess:20 });
+  const gunMat  = new THREE.MeshPhongMaterial({ color:0x222222, shininess:80 });
+
+  // Legs — rounded cylinders
+  const legGeo = new THREE.CylinderGeometry(.13,.15,.72,10);
+  const legL = new THREE.Mesh(legGeo, darkMat); legL.position.set(-.17,.36,0); legL.castShadow=true; g.add(legL);
+  const legR = new THREE.Mesh(legGeo, darkMat); legR.position.set( .17,.36,0); legR.castShadow=true; g.add(legR);
+  // Feet
+  const footGeo = new THREE.CylinderGeometry(.09,.13,.18,8);
+  const footL = new THREE.Mesh(footGeo, darkMat); footL.position.set(-.17,.09,0.04); g.add(footL);
+  const footR = new THREE.Mesh(footGeo, darkMat); footR.position.set( .17,.09,0.04); g.add(footR);
+
+  // Torso — tapered cylinder
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.28,.32,.82,12), bodyMat);
+  torso.position.y=1.1; torso.castShadow=true; g.add(torso);
+
+  // Shoulders (round pads)
+  const shoulderGeo = new THREE.SphereGeometry(.18,10,8);
+  const shL = new THREE.Mesh(shoulderGeo, bodyMat); shL.position.set(-.38,1.35,0); g.add(shL);
+  const shR = new THREE.Mesh(shoulderGeo, bodyMat); shR.position.set( .38,1.35,0); g.add(shR);
+
   // Arms
-  const armL=new THREE.Mesh(new THREE.BoxGeometry(.25,.9,.3),bodyMat);armL.position.set(-.5,.85,0);armL.castShadow=true;g.add(armL);
-  const armR=new THREE.Mesh(new THREE.BoxGeometry(.25,.9,.3),bodyMat);armR.position.set( .5,.85,0);armR.castShadow=true;g.add(armR);
-  // Gun (right hand)
-  const gunBody=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.55),new THREE.MeshLambertMaterial({color:0x333333}));gunBody.position.set(.5,.6,.35);g.add(gunBody);
-  const gunBarrel=new THREE.Mesh(new THREE.BoxGeometry(.06,.06,.4),new THREE.MeshLambertMaterial({color:0x555555}));gunBarrel.position.set(.5,.65,.65);g.add(gunBarrel);
-  // Glow on gun
-  const glow=new THREE.PointLight(sc,.8,3);glow.position.set(.5,.65,.8);g.add(glow);
+  const armGeo = new THREE.CylinderGeometry(.1,.12,.62,8);
+  const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-.42,.95,0); armL.castShadow=true; g.add(armL);
+  const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set( .42,.95,0); armR.castShadow=true; g.add(armR);
+
+  // Hands
+  const handGeo = new THREE.SphereGeometry(.1,8,8);
+  const handL = new THREE.Mesh(handGeo, skinMat); handL.position.set(-.42,.62,0); g.add(handL);
+  const handR = new THREE.Mesh(handGeo, skinMat); handR.position.set( .42,.62,0); g.add(handR);
+
+  // Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.1,.12,.18,8), skinMat);
+  neck.position.y=1.58; g.add(neck);
+
+  // Head — slightly rounded box using sphere+scale
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.28,12,10), skinMat);
+  head.scale.set(1,.95,.9); head.position.y=1.95; head.castShadow=true; g.add(head);
+
+  // Helmet
+  const helmBase = new THREE.Mesh(new THREE.CylinderGeometry(.3,.28,.22,12), bodyMat);
+  helmBase.position.y=2.12; g.add(helmBase);
+  const helmTop  = new THREE.Mesh(new THREE.SphereGeometry(.3,12,8,[0,Math.PI*2,0,Math.PI*.55]), bodyMat);
+  helmTop.position.y=2.18; g.add(helmTop);
+  // Visor
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(.38,.14,.1), new THREE.MeshPhongMaterial({color:0x88ddff,transparent:true,opacity:.7,shininess:120}));
+  visor.position.set(0,1.98,.26); g.add(visor);
+
+  // Gun body (right hand)
+  const gunBody2 = new THREE.Mesh(new THREE.BoxGeometry(.09,.09,.48), gunMat);
+  gunBody2.position.set(.42,.6,.28); g.add(gunBody2);
+  // Barrel
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.025,.03,.42,8), gunMat);
+  barrel.rotation.x=Math.PI/2; barrel.position.set(.42,.62,.56); g.add(barrel);
+  // Muzzle glow
+  const muzzle = new THREE.PointLight(gc,.9,2.5); muzzle.position.set(.42,.62,.78); g.add(muzzle);
+
   // Shield bubble
-  const shield=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,16),new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:.25,side:THREE.DoubleSide}));
-  shield.position.y=1.0;shield.visible=false;g.add(shield);
-  g.userData.shield=shield;
+  const shield = new THREE.Mesh(
+    new THREE.SphereGeometry(1.15,20,16),
+    new THREE.MeshBasicMaterial({color:0x44ffcc,transparent:true,opacity:.22,side:THREE.DoubleSide})
+  );
+  shield.position.y=1.1; shield.visible=false; g.add(shield);
+  g.userData.shield = shield;
   return g;
 }
 function setShieldVisible(id,v){if(playerMeshes[id])playerMeshes[id].userData.shield.visible=v;}
@@ -567,7 +612,7 @@ function startGame(players){
   _gameOverShown=false;hideGameOver();showScreen('screen-game');gameRunning=true;
   Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));playerMeshes={};projMeshes={};
   if(!renderer)initThree();
-  players.forEach(p=>{const m=createWizardMesh(p.equippedRobe||'robe_default',p.equippedSpell||'spell_default');m.position.set(p.x,0,p.z);scene.add(m);playerMeshes[p.id]=m;});
+  players.forEach(p=>{const m=createWizardMesh(p.equippedSkin||'skin_default',p.equippedSpell||'spell_default');m.position.set(p.x,0,p.z);scene.add(m);playerMeshes[p.id]=m;});
   const me=players.find(p=>p.id===myId),opp=players.find(p=>p.id!==myId);
   const ti=id=>shopCatalog.find(i=>i.id===id);
   if(me){document.getElementById('hud-name-you').textContent=me.username;const t=ti(me.equippedTitle);document.getElementById('hud-title-you').textContent=t?t.name:'';}
@@ -623,18 +668,15 @@ function onResize(){if(!renderer)return;renderer.setSize(window.innerWidth,windo
 let _gameOverShown=false;
 function showGameOver(){
   _gameOverShown=true;
-  // Stop render loop
   if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}
-  // DO NOT hide screen-game — hiding the canvas kills the WebGL context.
-  // Instead show an opaque overlay on top of everything with a high z-index.
+  // Use a CSS class — never touch screen-game, never use cssText with !important
   const go=document.getElementById('screen-gameover');
-  go.style.display='none'; // ensure clean state first
-  go.style.cssText='display:flex;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;align-items:center;justify-content:center;background:#08051a;';
+  go.classList.add('gameover-visible');
 }
 function hideGameOver(){
   _gameOverShown=false;
   const go=document.getElementById('screen-gameover');
-  go.style.cssText='display:none!important;';
+  go.classList.remove('gameover-visible');
 }
 function endGame(iWon,winnerName,disconnected,coinsEarned,quitterName){
   if(_gameOverShown)return;
@@ -671,7 +713,7 @@ function clearEmotes(){activeEmoteParticles.forEach(p=>scene&&scene.remove(p));a
 function connectSocket(){
   if(socket&&socket.connected)return;
   socket=io();
-  socket.on('connect',()=>{socket.emit('registerPresence',{username:profile.username,cosmetics:{equippedRobe:profile.equippedRobe,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});});
+  socket.on('connect',()=>{socket.emit('registerPresence',{username:profile.username,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});});
   socket.on('yourId',id=>{myId=id;});
   socket.on('matchFound',({players})=>{startGame(players);});
   socket.on('gameState',state=>{if(gameRunning)updateGameState(state);});
@@ -698,7 +740,7 @@ function joinQueue(){
   const lt=document.getElementById('lobby-title');if(lt)lt.textContent='⚔️ Finding Opponent...';
   document.getElementById('lobby-msg').textContent='Searching for an opponent...';
   showScreen('screen-lobby');
-  socket.emit('joinQueue',{username:profile.username,token:authToken,cosmetics:{equippedRobe:profile.equippedRobe,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
+  socket.emit('joinQueue',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
 }
 
 // ── API Helper ────────────────────────────────────────

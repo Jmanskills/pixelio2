@@ -12,10 +12,10 @@ const userSchema = new mongoose.Schema({
   coins:  { type: Number, default: 100 },
 
   // Owned item IDs
-  inventory: { type: [String], default: ['robe_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'] },
+  inventory: { type: [String], default: ['skin_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'] },
 
   // Equipped
-  equippedRobe:  { type: String, default: 'robe_default' },
+  equippedSkin:  { type: String, default: 'skin_default' },
   equippedSpell: { type: String, default: 'spell_default' },
   equippedTitle: { type: String, default: 'title_wizard' },
 
@@ -48,7 +48,7 @@ userSchema.methods.safeProfile = function () {
     losses: this.losses,
     coins: this.coins,
     inventory: this.inventory,
-    equippedRobe: this.equippedRobe,
+    equippedSkin: this.equippedSkin,
     equippedSpell: this.equippedSpell,
     equippedTitle: this.equippedTitle,
     friends: this.friends,

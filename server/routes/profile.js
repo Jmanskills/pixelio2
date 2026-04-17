@@ -26,7 +26,7 @@ router.get('/:username', async (req, res) => {
       wins: user.wins,
       losses: user.losses,
       coins: user.coins,
-      equippedRobe: user.equippedRobe,
+      equippedSkin: user.equippedSkin,
       equippedTitle: user.equippedTitle,
       isAdmin: user.isAdmin,
       createdAt: user.createdAt

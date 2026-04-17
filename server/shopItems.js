@@ -1,12 +1,12 @@
 const SHOP_ITEMS = [
   // ── ROBES ────────────────────────────────────────────
-  { id: 'robe_default',    name: 'Default Outfit',  category: 'robe',  price: 0,    color: 0x6a0dad, preview: '#6a0dad', description: 'Your starter outfit.' },
-  { id: 'robe_crimson',    name: 'Red Jacket',     category: 'robe',  price: 150,  color: 0xcc1122, preview: '#cc1122', description: 'Stand out in red!' },
-  { id: 'robe_ocean',      name: 'Blue Jacket',       category: 'robe',  price: 150,  color: 0x0066cc, preview: '#0066cc', description: 'Cool in blue!' },
-  { id: 'robe_forest',     name: 'Camo Outfit',      category: 'robe',  price: 150,  color: 0x1a7a2a, preview: '#1a7a2a', description: 'Blend into the action!' },
-  { id: 'robe_gold',       name: 'Gold Suit',      category: 'robe',  price: 300,  color: 0xd4a017, preview: '#d4a017', description: 'Shine like a champion!' },
-  { id: 'robe_shadow',     name: 'Stealth Suit',      category: 'robe',  price: 300,  color: 0x1a1a2e, preview: '#1a1a2e', description: 'Be the shadow!' },
-  { id: 'robe_rainbow',    name: 'Rainbow Suit',       category: 'robe',  price: 500,  color: 0xff44aa, preview: '#ff44aa', description: 'All the colors!' },
+  { id: 'skin_default',    name: 'Default Outfit',  category: 'skin',  price: 0,    color: 0x6a0dad, preview: '#6a0dad', description: 'Your starter outfit.' },
+  { id: 'skin_crimson',    name: 'Red Jacket',     category: 'skin',  price: 150,  color: 0xcc1122, preview: '#cc1122', description: 'Stand out in red!' },
+  { id: 'skin_ocean',      name: 'Blue Jacket',       category: 'skin',  price: 150,  color: 0x0066cc, preview: '#0066cc', description: 'Cool in blue!' },
+  { id: 'skin_forest',     name: 'Camo Outfit',      category: 'skin',  price: 150,  color: 0x1a7a2a, preview: '#1a7a2a', description: 'Blend into the action!' },
+  { id: 'skin_gold',       name: 'Gold Suit',      category: 'skin',  price: 300,  color: 0xd4a017, preview: '#d4a017', description: 'Shine like a champion!' },
+  { id: 'skin_shadow',     name: 'Stealth Suit',      category: 'skin',  price: 300,  color: 0x1a1a2e, preview: '#1a1a2e', description: 'Be the shadow!' },
+  { id: 'skin_rainbow',    name: 'Rainbow Suit',       category: 'skin',  price: 500,  color: 0xff44aa, preview: '#ff44aa', description: 'All the colors!' },
 
   // ── SPELL EFFECTS ─────────────────────────────────────
   { id: 'spell_default',   name: 'Default FX',    category: 'spell', price: 0,    color: null,     preview: '#9b30e8', description: 'Default shot effects.' },
