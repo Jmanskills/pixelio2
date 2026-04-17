@@ -140,11 +140,13 @@ function menuNav(tab) {
   document.querySelectorAll('.menu-panel').forEach(p=>p.classList.remove('active'));
   const navBtn=document.getElementById('nav-'+tab); if(navBtn)navBtn.classList.add('active');
   const panel=document.getElementById('panel-'+tab); if(panel)panel.classList.add('active');
-  if(tab==='shop')    renderShop();
-  if(tab==='friends') loadFriends();
-  if(tab==='news')    loadNews();
-  if(tab==='admin')   adminTab('users');
-  if(tab==='profile') loadProfilePanel();
+  if(tab==='shop')        renderShop();
+  if(tab==='friends')     loadFriends();
+  if(tab==='news')        loadNews();
+  if(tab==='admin')       adminTab('users');
+  if(tab==='profile')     loadProfilePanel();
+  if(tab==='leaderboard') loadLeaderboard('wins');
+  if(tab==='settings')    loadSettings();
 }
 
 // ── Preview Canvas ────────────────────────────────────
@@ -609,9 +611,13 @@ function blendColors(c1,c2,t){const r1=(c1>>16)&0xff,g1=(c1>>8)&0xff,b1=c1&0xff,
 function createProjectileMesh(spellKey,spellItemId){let c=BSC[spellKey]||0xffffff;const ov=SPELL_COLORS[spellItemId];if(ov)c=blendColors(c,ov,.5);const geo=spellKey==='iceshard'?new THREE.OctahedronGeometry(.2):new THREE.SphereGeometry(.25,8,8);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.add(new THREE.PointLight(c,1.5,4));return m;}
 
 function startGame(players){
-  _gameOverShown=false;hideGameOver();showScreen('screen-game');gameRunning=true;
-  Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));playerMeshes={};projMeshes={};
-  if(!renderer)initThree();
+  _gameOverShown=false;
+  hideGameOver();
+  if(!renderer)initThree();  // MUST init before using scene
+  showScreen('screen-game');
+  gameRunning=true;
+  if(scene){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));}
+  playerMeshes={};projMeshes={};
   players.forEach(p=>{const m=createWizardMesh(p.equippedSkin||'skin_default',p.equippedSpell||'spell_default');m.position.set(p.x,0,p.z);scene.add(m);playerMeshes[p.id]=m;});
   const me=players.find(p=>p.id===myId),opp=players.find(p=>p.id!==myId);
   const ti=id=>shopCatalog.find(i=>i.id===id);
@@ -646,7 +652,7 @@ function setupInputListeners(){
   if(inputInterval)clearInterval(inputInterval); inputInterval=setInterval(sendInput,50);
 }
 function removeInputListeners(){document.removeEventListener('keydown',onKeyDown);document.removeEventListener('keyup',onKeyUp);document.removeEventListener('mousemove',onMouseMove);if(inputInterval){clearInterval(inputInterval);inputInterval=null;}}
-function onMouseMove(e){if(pointerLocked)mouseX+=e.movementX*.003;}
+function onMouseMove(e){if(pointerLocked)mouseX+=e.movementX*(window._mouseSensitivity||.003);}
 function onKeyDown(e){
   keys[e.code]=true;
   if(e.code==='Tab'){e.preventDefault();if(gameRunning)toggleEmoteWheel();return;}
@@ -885,12 +891,122 @@ function startSplashAnimation() {
 function stopSplashAnimation() {
   if(_splashAnimId){ cancelAnimationFrame(_splashAnimId); _splashAnimId=null; }
 }
+
+// ═══════════════════════════════════════════════════
+//  LEADERBOARD
+// ═══════════════════════════════════════════════════
+let currentLbType = 'wins';
+
+async function loadLeaderboard(type) {
+  currentLbType = type || currentLbType;
+  const list = document.getElementById('lb-list');
+  if(!list) return;
+  list.innerHTML = '<div class="lb-loading">Loading...</div>';
+  try {
+    const res = await fetch(`/api/leaderboard?type=${currentLbType}`);
+    const data = await res.json();
+    if(!data.board || !data.board.length) {
+      list.innerHTML = '<div class="lb-empty">No players yet. Be the first!</div>';
+      return;
+    }
+    list.innerHTML = data.board.map((p, i) => {
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+      const isMe = profile && p.username === profile.username;
+      const titleItem = shopCatalog.find(t => t.id === p.equippedTitle);
+      const titleName = titleItem ? titleItem.name : '';
+      let statVal = '';
+      if(currentLbType==='wins')  statVal = `🏆 ${p.wins} wins`;
+      if(currentLbType==='coins') statVal = `🪙 ${p.coins} coins`;
+      if(currentLbType==='kd')    statVal = `📊 ${p.kd} K/D`;
+      return `<div class="lb-row ${isMe?'lb-me':''}">
+        <div class="lb-rank">${medal||('#'+p.rank)}</div>
+        <div class="lb-info">
+          <div class="lb-name">${escHtml(p.username)}${p.isAdmin?'<span class="tag tag-admin" style="margin-left:6px">Admin</span>':''}</div>
+          <div class="lb-title">${escHtml(titleName)}</div>
+        </div>
+        <div class="lb-stat">${statVal}</div>
+        <div class="lb-sub">${p.wins}W ${p.losses}L</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="lb-empty">Failed to load leaderboard.</div>';
+  }
+}
+
+function lbTab(type, btn) {
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  loadLeaderboard(type);
+}
+
+// ═══════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════
+const SETTINGS_KEY = 'pixelio_settings';
+
+function loadSettings() {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  const sens = saved.sensitivity !== undefined ? saved.sensitivity : 5;
+  const fps  = saved.fps  || false;
+  const dmg  = saved.damage !== false;
+  const sfx  = saved.sfx  !== false;
+  const music = saved.music || false;
+
+  const sensEl = document.getElementById('setting-sensitivity');
+  const sensVal = document.getElementById('setting-sensitivity-val');
+  if(sensEl){ sensEl.value = sens; if(sensVal) sensVal.textContent = sens; }
+  const el = id => document.getElementById(id);
+  if(el('setting-fps'))    el('setting-fps').checked    = fps;
+  if(el('setting-damage')) el('setting-damage').checked = dmg;
+  if(el('setting-sfx'))    el('setting-sfx').checked    = sfx;
+  if(el('setting-music'))  el('setting-music').checked  = music;
+  if(el('settings-username')) el('settings-username').textContent = profile ? profile.username : '';
+
+  // Apply sensitivity
+  applySensitivity(sens);
+}
+
+function applySensitivity(val) {
+  // mouseX += e.movementX * sensitivity
+  window._mouseSensitivity = (val / 5) * 0.003;
+}
+
+function saveSettings() {
+  const sens   = parseInt(document.getElementById('setting-sensitivity').value);
+  const fps    = document.getElementById('setting-fps').checked;
+  const damage = document.getElementById('setting-damage').checked;
+  const sfx    = document.getElementById('setting-sfx').checked;
+  const music  = document.getElementById('setting-music').checked;
+
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ sensitivity:sens, fps, damage, sfx, music }));
+  applySensitivity(sens);
+
+  const msg = document.getElementById('settings-saved-msg');
+  if(msg){ msg.classList.remove('hidden'); setTimeout(()=>msg.classList.add('hidden'), 2000); }
+}
+
+// Init settings on load
+(function(){
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
+  applySensitivity(saved.sensitivity !== undefined ? saved.sensitivity : 5);
+  window._showDamageNumbers = saved.damage !== false;
+})();
+
 // ══════════════════════════════════════════════════════
 //  BOOT
+
 // ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   spawnParticles('particles');
   startSplashAnimation();
+
+  // Settings slider live preview
+  const sensSlider = document.getElementById('setting-sensitivity');
+  const sensVal    = document.getElementById('setting-sensitivity-val');
+  if(sensSlider) sensSlider.addEventListener('input', () => {
+    if(sensVal) sensVal.textContent = sensSlider.value;
+    applySensitivity(parseInt(sensSlider.value));
+  });
 
   // Auth modal
   document.getElementById('btn-auth-submit').addEventListener('click', doAuth);
@@ -899,6 +1015,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Close modal on backdrop click
   document.getElementById('auth-modal').addEventListener('click', e => { if(e.target===document.getElementById('auth-modal')) closeAuthModal(); });
   document.getElementById('btn-logout').addEventListener('click', logout);
+  document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+  document.getElementById('btn-settings-logout').addEventListener('click', logout);
 
   // Play
   document.getElementById('btn-play-game').addEventListener('click', joinQueue);
@@ -946,13 +1064,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Game over
   document.getElementById('btn-play-again').addEventListener('click', () => {
     hideGameOver();
-    if(renderer){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));playerMeshes={};projMeshes={};}
-    clearEmotes(); joinQueue();
+    if(scene){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));}
+    playerMeshes={};projMeshes={};
+    clearEmotes();
+    joinQueue();
   });
   document.getElementById('btn-gameover-menu').addEventListener('click', () => {
     hideGameOver();
-    if(renderer){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));playerMeshes={};projMeshes={};}
-    clearEmotes(); enterMainMenu();
+    if(scene){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));}
+    playerMeshes={};projMeshes={};
+    clearEmotes();
+    enterMainMenu();
   });
 
   const loggedIn = await tryAutoLogin();

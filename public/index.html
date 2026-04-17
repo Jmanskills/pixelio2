@@ -99,6 +99,12 @@
       <button class="menu-nav-btn" id="nav-profile" onclick="menuNav('profile')">
         <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
       </button>
+      <button class="menu-nav-btn" id="nav-leaderboard" onclick="menuNav('leaderboard')">
+        <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-settings" onclick="menuNav('settings')">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </button>
       <button class="menu-nav-btn" id="nav-admin" onclick="menuNav('admin')" style="display:none">
         <span class="nav-icon">🛡️</span><span class="nav-label">Admin</span>
       </button>
@@ -222,6 +228,86 @@
     </div>
 
     <!-- ADMIN PANEL -->
+    <!-- LEADERBOARD PANEL -->
+    <div class="menu-panel" id="panel-leaderboard">
+      <div class="lb-header">
+        <div class="lb-title">🏆 Leaderboard</div>
+        <div class="lb-tabs">
+          <button class="lb-tab active" onclick="lbTab('wins',this)">🏆 Most Wins</button>
+          <button class="lb-tab" onclick="lbTab('coins',this)">🪙 Most Coins</button>
+          <button class="lb-tab" onclick="lbTab('kd',this)">📊 Best K/D</button>
+        </div>
+      </div>
+      <div id="lb-list" class="lb-list"><div class="lb-loading">Loading...</div></div>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div class="menu-panel" id="panel-settings">
+      <div class="settings-wrap">
+        <div class="settings-section">
+          <div class="settings-title">🎮 Game Settings</div>
+          <div class="settings-row">
+            <div class="settings-label">Mouse Sensitivity</div>
+            <div class="settings-control">
+              <input type="range" id="setting-sensitivity" min="1" max="10" value="5" class="settings-slider"/>
+              <span id="setting-sensitivity-val" class="settings-val">5</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Show FPS Counter</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-fps"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Show Damage Numbers</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-damage" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">🔊 Audio</div>
+          <div class="settings-row">
+            <div class="settings-label">Sound Effects</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-sfx" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Music</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-music"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">⚠️ Account</div>
+          <div class="settings-row">
+            <div class="settings-label">Logged in as</div>
+            <div class="settings-val" id="settings-username"></div>
+          </div>
+          <button class="btn-secondary settings-logout-btn" id="btn-settings-logout">🚪 Log Out</button>
+        </div>
+        <div class="settings-save-row">
+          <button class="btn-primary" id="btn-save-settings">💾 Save Settings</button>
+          <div id="settings-saved-msg" class="hidden settings-saved-msg">✅ Saved!</div>
+        </div>
+      </div>
+    </div>
+
     <div class="menu-panel" id="panel-admin">
       <div class="admin-tabs">
         <button class="admin-tab active" onclick="adminTab('users')">👥 Users</button>

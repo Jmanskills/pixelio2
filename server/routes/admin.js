@@ -28,11 +28,16 @@ router.get('/users', adminAuth, async (req, res) => {
 });
 
 // POST /api/admin/ban
+// Accounts that can never be banned, kicked, or demoted
+const OWNER_USERNAMES = ['jmanskills'];
+const isOwner = (u) => OWNER_USERNAMES.some(o => o.toLowerCase() === (u||'').toLowerCase());
+
 router.post('/ban', adminAuth, async (req, res) => {
   try {
     const { username, reason } = req.body;
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: 'User not found.' });
+    if (isOwner(username)) return res.status(400).json({ error: 'Cannot ban the owner.' });
     if (user.isAdmin) return res.status(400).json({ error: 'Cannot ban an admin.' });
     user.isBanned = true;
     user.banReason = reason || 'Violation of rules.';
@@ -64,6 +69,7 @@ router.post('/makeadmin', adminAuth, async (req, res) => {
 router.post('/removeadmin', adminAuth, async (req, res) => {
   try {
     const { username } = req.body;
+    if (isOwner(username)) return res.status(400).json({ error: 'Cannot remove admin from the owner.' });
     if (username === req.admin.username) return res.status(400).json({ error: 'Cannot remove your own admin.' });
     await User.findOneAndUpdate({ username }, { isAdmin: false });
     res.json({ message: `${username} admin removed.` });
@@ -97,6 +103,7 @@ router.post('/givecoins', adminAuth, async (req, res) => {
 router.post('/kick', adminAuth, async (req, res) => {
   try {
     const { username } = req.body;
+    if (isOwner(username)) return res.status(400).json({ error: 'Cannot kick the owner.' });
     const { getOnlineUsers, getIO } = require('../game');
     const onlineUsers = getOnlineUsers();
     const io = getIO();

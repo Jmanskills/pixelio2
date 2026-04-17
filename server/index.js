@@ -10,7 +10,8 @@ const authRoutes   = require('./routes/auth');
 const shopRoutes   = require('./routes/shop');
 const friendRoutes = require('./routes/friends');
 const adminRoutes   = require('./routes/admin');
-const profileRoutes = require('./routes/profile');
+const profileRoutes    = require('./routes/profile');
+const leaderboardRoutes = require('./routes/leaderboard');
 const { setupGameSockets } = require('./game');
 const User = require('./models/User');
 
@@ -37,7 +38,8 @@ app.use('/api/auth',    authRoutes);
 app.use('/api/shop',    shopRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/admin',   adminRoutes);
-app.use('/api/profile', profileRoutes);
+app.use('/api/profile',     profileRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
