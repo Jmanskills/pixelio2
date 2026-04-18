@@ -226,7 +226,11 @@ function renderShop() {
       else if(item.price===0){btn.textContent='Free — Unlock';btn.className+=' equip';btn.onclick=()=>buyAndEquip(item.id,0);}
       else{btn.textContent='🪙 '+item.price;if(profile.coins<item.price)btn.disabled=true;btn.onclick=()=>buyAndEquip(item.id,item.price);}
     }else if(equipped){btn.textContent='✓ Equipped';btn.className+=' equipped-btn';btn.disabled=true;}
-    else if(owned){btn.textContent='Equip';btn.className+=' equip';btn.onclick=()=>equipItem(item.id);}
+    else if(owned){
+      btn.textContent='Equip';btn.className+=' equip';btn.onclick=()=>equipItem(item.id);
+      // Gift button for owned paid items
+      if(item.price>0){const gb=document.createElement('button');gb.className='shop-item-btn gift-btn';gb.textContent='🎁 Gift';gb.onclick=()=>openGiftModal(item);card.appendChild(gb);}
+    }
     else if(item.price===0){btn.textContent='Free — Equip';btn.className+=' equip';btn.onclick=()=>buyAndEquip(item.id,0);}
     else{btn.textContent='🪙 '+item.price;if(profile.coins<item.price)btn.disabled=true;btn.onclick=()=>buyAndEquip(item.id,item.price);}
     card.appendChild(preview); card.appendChild(name); card.appendChild(desc); card.appendChild(btn);
@@ -532,77 +536,57 @@ function addLights(){scene.add(new THREE.AmbientLight(0x6688aa,1.2));const sun=n
 function addSkybox(){const sky=new THREE.Mesh(new THREE.SphereGeometry(100,16,8),new THREE.MeshBasicMaterial({color:0x050312,side:THREE.BackSide}));scene.add(sky);const sv=[];for(let i=0;i<800;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=90;sv.push(r*Math.sin(p)*Math.cos(t),r*Math.cos(p),r*Math.sin(p)*Math.sin(t));}const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.3})));}
 
 function createWizardMesh(skinItemId, spellItemId){
-  // Smooth rounded player character — replace with your custom model when ready
-  const sc = SKIN_COLORS[skinItemId]  || 0x6a0dad;
+  // Simple clean capsule-style character — replace body with your custom model later
+  const sc = SKIN_COLORS[skinItemId] || 0x6a0dad;
   const gc = SPELL_COLORS[spellItemId] || sc;
   const g  = new THREE.Group();
 
-  const bodyMat = new THREE.MeshPhongMaterial({ color:sc, shininess:60 });
-  const darkMat = new THREE.MeshPhongMaterial({ color:0x223344, shininess:40 });
-  const skinMat = new THREE.MeshPhongMaterial({ color:0xf5c896, shininess:20 });
-  const gunMat  = new THREE.MeshPhongMaterial({ color:0x222222, shininess:80 });
+  const mat  = new THREE.MeshLambertMaterial({color: sc});
+  const dark = new THREE.MeshLambertMaterial({color: 0x111122});
+  const skin = new THREE.MeshLambertMaterial({color: 0xf0c890});
+  const grey = new THREE.MeshLambertMaterial({color: 0x444455});
+  const blk  = new THREE.MeshLambertMaterial({color: 0x222233});
 
-  // Legs — rounded cylinders
-  const legGeo = new THREE.CylinderGeometry(.13,.15,.72,10);
-  const legL = new THREE.Mesh(legGeo, darkMat); legL.position.set(-.17,.36,0); legL.castShadow=true; g.add(legL);
-  const legR = new THREE.Mesh(legGeo, darkMat); legR.position.set( .17,.36,0); legR.castShadow=true; g.add(legR);
-  // Feet
-  const footGeo = new THREE.CylinderGeometry(.09,.13,.18,8);
-  const footL = new THREE.Mesh(footGeo, darkMat); footL.position.set(-.17,.09,0.04); g.add(footL);
-  const footR = new THREE.Mesh(footGeo, darkMat); footR.position.set( .17,.09,0.04); g.add(footR);
+  // Legs
+  const leg = new THREE.CylinderGeometry(.13,.13,.7,8);
+  const lL=new THREE.Mesh(leg,blk); lL.position.set(-.17,.35,0); lL.castShadow=true; g.add(lL);
+  const lR=new THREE.Mesh(leg,blk); lR.position.set( .17,.35,0); lR.castShadow=true; g.add(lR);
 
-  // Torso — tapered cylinder
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.28,.32,.82,12), bodyMat);
-  torso.position.y=1.1; torso.castShadow=true; g.add(torso);
-
-  // Shoulders (round pads)
-  const shoulderGeo = new THREE.SphereGeometry(.18,10,8);
-  const shL = new THREE.Mesh(shoulderGeo, bodyMat); shL.position.set(-.38,1.35,0); g.add(shL);
-  const shR = new THREE.Mesh(shoulderGeo, bodyMat); shR.position.set( .38,1.35,0); g.add(shR);
+  // Torso
+  const torso=new THREE.Mesh(new THREE.CylinderGeometry(.26,.28,.75,12),mat);
+  torso.position.y=1.07; torso.castShadow=true; g.add(torso);
 
   // Arms
-  const armGeo = new THREE.CylinderGeometry(.1,.12,.62,8);
-  const armL = new THREE.Mesh(armGeo, bodyMat); armL.position.set(-.42,.95,0); armL.castShadow=true; g.add(armL);
-  const armR = new THREE.Mesh(armGeo, bodyMat); armR.position.set( .42,.95,0); armR.castShadow=true; g.add(armR);
+  const arm=new THREE.CylinderGeometry(.1,.1,.65,8);
+  const aL=new THREE.Mesh(arm,mat); aL.position.set(-.38,.95,0); aL.castShadow=true; g.add(aL);
+  const aR=new THREE.Mesh(arm,mat); aR.position.set( .38,.95,0); aR.castShadow=true; g.add(aR);
 
-  // Hands
-  const handGeo = new THREE.SphereGeometry(.1,8,8);
-  const handL = new THREE.Mesh(handGeo, skinMat); handL.position.set(-.42,.62,0); g.add(handL);
-  const handR = new THREE.Mesh(handGeo, skinMat); handR.position.set( .42,.62,0); g.add(handR);
+  // Head
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.26,10,8),skin);
+  head.position.y=1.73; head.castShadow=true; g.add(head);
 
-  // Neck
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.1,.12,.18,8), skinMat);
-  neck.position.y=1.58; g.add(neck);
+  // Simple helmet (flat cylinder cap)
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.15,12),mat);
+  cap.position.y=1.93; g.add(cap);
+  const capTop=new THREE.Mesh(new THREE.SphereGeometry(.28,10,6,[0,Math.PI*2,0,Math.PI*.5]),mat);
+  capTop.position.y=2.0; g.add(capTop);
 
-  // Head — slightly rounded box using sphere+scale
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.28,12,10), skinMat);
-  head.scale.set(1,.95,.9); head.position.y=1.95; head.castShadow=true; g.add(head);
+  // Gun
+  const gunG=new THREE.Group(); gunG.position.set(.38,.65,.15);
+  const gBody=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.42),grey); gBody.position.z=.05; gunG.add(gBody);
+  const gBar =new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.32,6),grey); gBar.rotation.x=Math.PI/2; gBar.position.z=.35; gunG.add(gBar);
+  g.add(gunG);
 
-  // Helmet
-  const helmBase = new THREE.Mesh(new THREE.CylinderGeometry(.3,.28,.22,12), bodyMat);
-  helmBase.position.y=2.12; g.add(helmBase);
-  const helmTop  = new THREE.Mesh(new THREE.SphereGeometry(.3,12,8,[0,Math.PI*2,0,Math.PI*.55]), bodyMat);
-  helmTop.position.y=2.18; g.add(helmTop);
-  // Visor
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(.38,.14,.1), new THREE.MeshPhongMaterial({color:0x88ddff,transparent:true,opacity:.7,shininess:120}));
-  visor.position.set(0,1.98,.26); g.add(visor);
-
-  // Gun body (right hand)
-  const gunBody2 = new THREE.Mesh(new THREE.BoxGeometry(.09,.09,.48), gunMat);
-  gunBody2.position.set(.42,.6,.28); g.add(gunBody2);
-  // Barrel
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.025,.03,.42,8), gunMat);
-  barrel.rotation.x=Math.PI/2; barrel.position.set(.42,.62,.56); g.add(barrel);
   // Muzzle glow
-  const muzzle = new THREE.PointLight(gc,.9,2.5); muzzle.position.set(.42,.62,.78); g.add(muzzle);
+  const glow=new THREE.PointLight(gc,0.7,2.5); glow.position.set(.38,.65,.65); g.add(glow);
 
-  // Shield bubble
-  const shield = new THREE.Mesh(
-    new THREE.SphereGeometry(1.15,20,16),
-    new THREE.MeshBasicMaterial({color:0x44ffcc,transparent:true,opacity:.22,side:THREE.DoubleSide})
+  // Shield
+  const shield=new THREE.Mesh(
+    new THREE.SphereGeometry(1.1,16,12),
+    new THREE.MeshBasicMaterial({color:0x44ffcc,transparent:true,opacity:.2,side:THREE.DoubleSide})
   );
-  shield.position.y=1.1; shield.visible=false; g.add(shield);
-  g.userData.shield = shield;
+  shield.position.y=1.0; shield.visible=false; g.add(shield);
+  g.userData.shield=shield;
   return g;
 }
 function setShieldVisible(id,v){if(playerMeshes[id])playerMeshes[id].userData.shield.visible=v;}
@@ -667,15 +651,18 @@ function toggleAimbot(){aimbotEnabled=!aimbotEnabled;const btn=document.getEleme
 function runAimbot(){if(!aimbotEnabled||!gameRunning||!socket)return;const oi=Object.keys(playerMeshes).find(id=>id!==myId);if(!oi)return;const opp=playerMeshes[oi],my=playerMeshes[myId];if(!opp||!my)return;const dx=opp.position.x-my.position.x,dz=opp.position.z-my.position.z;mouseX=mouseX+(-Math.atan2(dx,dz)-mouseX)*.25;const now=Date.now();for(const sp of['iceshard','thunder','fireball']){if((cooldownTimers[sp]||0)<=now){socket.emit('castSpell',{spellKey:sp});cooldownTimers[sp]=now+COOLDOWNS[sp];triggerCooldownUI(sp);break;}}}
 function sendInput(){if(!socket||!gameRunning)return;if(aimbotEnabled)runAimbot();let dx=0,dz=0;if(keys['KeyW']||keys['ArrowUp'])dz-=1;if(keys['KeyS']||keys['ArrowDown'])dz+=1;if(keys['KeyA']||keys['ArrowLeft'])dx-=1;if(keys['KeyD']||keys['ArrowRight'])dx+=1;const a=mouseX;socket.emit('playerInput',{dx:dx*Math.cos(a)+dz*Math.sin(a),dz:-dx*Math.sin(a)+dz*Math.cos(a),rotY:mouseX});}
 
-let gameOverFrames=null;
-function renderLoop(){if(!gameRunning&&!gameOverFrames)return;animFrameId=requestAnimationFrame(renderLoop);tickEmotes();renderer.render(scene,camera);if(!gameRunning&&gameOverFrames!==null){gameOverFrames--;if(gameOverFrames<=0){cancelAnimationFrame(animFrameId);animFrameId=null;gameOverFrames=null;}}}
+function renderLoop(){
+  if(!gameRunning)return;
+  animFrameId=requestAnimationFrame(renderLoop);
+  tickEmotes();
+  renderer.render(scene,camera);
+}
 function onResize(){if(!renderer)return;renderer.setSize(window.innerWidth,window.innerHeight);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();}
 
 let _gameOverShown=false;
 function showGameOver(){
   _gameOverShown=true;
-  if(animFrameId){cancelAnimationFrame(animFrameId);animFrameId=null;}
-  // Use a CSS class — never touch screen-game, never use cssText with !important
+  // The overlay has its own solid background — no need to stop the canvas
   const go=document.getElementById('screen-gameover');
   go.classList.add('gameover-visible');
 }
@@ -686,7 +673,7 @@ function hideGameOver(){
 }
 function endGame(iWon,winnerName,disconnected,coinsEarned,quitterName){
   if(_gameOverShown)return;
-  gameRunning=false;removeInputListeners();hideReportModal();hideEmoteWheel();
+  removeInputListeners();hideReportModal();hideEmoteWheel();
   const isDraw=iWon===null;
   document.getElementById('gameover-icon').textContent=isDraw?'🤝':iWon?'🏆':'💀';
   document.getElementById('gameover-title').textContent=isDraw?'DRAW':iWon?'YOU WIN!':'DEFEATED!';
@@ -694,6 +681,8 @@ function endGame(iWon,winnerName,disconnected,coinsEarned,quitterName){
   document.getElementById('gameover-sub').textContent=sub;
   document.getElementById('gameover-coins').textContent=coinsEarned>0?`+🪙 ${coinsEarned} coins earned!`:'';
   showGameOver();
+  // Stop game AFTER overlay is shown so canvas is still valid underneath
+  gameRunning=false;
 }
 
 function quitMatch(){if(!socket||!gameRunning)return;if(!confirm('Quit? Match ends as draw.'))return;socket.emit('quitMatch');}
@@ -992,6 +981,44 @@ function saveSettings() {
   window._showDamageNumbers = saved.damage !== false;
 })();
 
+
+// ═══════════════════════════════════════════════════
+//  GIFTING
+// ═══════════════════════════════════════════════════
+function openGiftModal(item) {
+  document.getElementById('gift-item-name').textContent = item.name;
+  document.getElementById('gift-item-id').value = item.id;
+  document.getElementById('gift-username').value = '';
+  document.getElementById('gift-error').classList.add('hidden');
+  document.getElementById('gift-cost-line').textContent = `Cost: 🪙 ${item.price} coins (your balance: 🪙 ${profile.coins})`;
+  document.getElementById('gift-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('gift-username').focus(), 100);
+}
+
+function closeGiftModal() {
+  document.getElementById('gift-modal').classList.add('hidden');
+}
+
+async function sendGift() {
+  const toUsername = document.getElementById('gift-username').value.trim();
+  const itemId     = document.getElementById('gift-item-id').value;
+  const errEl      = document.getElementById('gift-error');
+  errEl.classList.add('hidden');
+  if (!toUsername) { errEl.textContent = 'Enter a username.'; errEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('btn-gift-send');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  const res = await apiFetch('/api/shop/gift', 'POST', { toUsername, itemId });
+  btn.disabled = false; btn.textContent = 'Send Gift 🎁';
+
+  if (!res) return; // apiFetch shows error
+  profile = res.profile;
+  updateMenuUI();
+  renderShop();
+  closeGiftModal();
+  showReportConfirmation(res.message);
+}
+
 // ══════════════════════════════════════════════════════
 //  BOOT
 
@@ -1016,6 +1043,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('auth-modal').addEventListener('click', e => { if(e.target===document.getElementById('auth-modal')) closeAuthModal(); });
   document.getElementById('btn-logout').addEventListener('click', logout);
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+  document.getElementById('btn-gift-send').addEventListener('click', sendGift);
+  document.getElementById('btn-gift-cancel').addEventListener('click', closeGiftModal);
+  document.getElementById('gift-username').addEventListener('keydown', e => { if(e.key==='Enter') sendGift(); });
+  document.getElementById('gift-modal').addEventListener('click', e => { if(e.target===document.getElementById('gift-modal')) closeGiftModal(); });
   document.getElementById('btn-settings-logout').addEventListener('click', logout);
 
   // Play

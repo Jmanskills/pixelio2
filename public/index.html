@@ -473,6 +473,25 @@
   </div>
 </div>
 
+<!-- ══════════ GIFT MODAL ══════════ -->
+<div id="gift-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:400px;gap:16px;">
+    <div class="modal-title">🎁 Gift Item</div>
+    <div class="modal-sub">Sending: <strong id="gift-item-name"></strong></div>
+    <input type="hidden" id="gift-item-id"/>
+    <div class="modal-field">
+      <label class="modal-label">Recipient Username</label>
+      <input class="auth-input" id="gift-username" placeholder="Enter their username..." maxlength="20"/>
+    </div>
+    <div id="gift-cost-line" class="modal-sub" style="color:var(--gold)"></div>
+    <div id="gift-error" class="auth-error hidden"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-gift-send">Send Gift 🎁</button>
+      <button class="btn-secondary" id="btn-gift-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ INVITE TOAST ══════════ -->
 <div id="invite-toast" class="hidden">
   <div class="invite-msg" id="invite-msg">⚔️ <strong id="invite-from"></strong> challenged you!</div>

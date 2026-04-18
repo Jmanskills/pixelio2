@@ -58,3 +58,34 @@ router.post('/equip', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+// POST /api/shop/gift  { toUsername, itemId }
+router.post('/gift', authMiddleware, async (req, res) => {
+  try {
+    const { toUsername, itemId } = req.body;
+    if (!toUsername || !itemId) return res.status(400).json({ error: 'Username and item required.' });
+
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    if (!item) return res.status(404).json({ error: 'Item not found.' });
+    if (item.price === 0) return res.status(400).json({ error: 'Cannot gift free items.' });
+
+    const sender   = await User.findById(req.user.id);
+    const receiver = await User.findOne({ username: toUsername.trim() });
+
+    if (!sender)   return res.status(404).json({ error: 'Your account not found.' });
+    if (!receiver) return res.status(404).json({ error: `Player "${toUsername}" not found.` });
+    if (sender.username === receiver.username) return res.status(400).json({ error: 'Cannot gift yourself.' });
+    if (receiver.inventory.includes(itemId)) return res.status(400).json({ error: `${receiver.username} already owns this item.` });
+    if (sender.coins < item.price) return res.status(400).json({ error: `Not enough coins. Need 🪙${item.price}.` });
+
+    sender.coins -= item.price;
+    receiver.inventory.push(itemId);
+    await sender.save();
+    await receiver.save();
+
+    res.json({
+      message: `🎁 Gifted "${item.name}" to ${receiver.username}!`,
+      profile: sender.safeProfile()
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
+});
