@@ -9,7 +9,7 @@
 <body>
 
 <!-- ══════════ SPLASH / LOGIN ══════════ -->
-<div id="screen-splash">
+<div id="screen-splash" style="display:flex;z-index:15;">
   <div class="splash-bg"></div>
   <div class="splash-particles" id="particles"></div>
 
@@ -442,7 +442,7 @@
 </div>
 
 <!-- ══════════ GAME ══════════ -->
-<div id="screen-game">
+<div id="screen-game" style="visibility:hidden;pointer-events:none;z-index:9;">
   <canvas id="game-canvas"></canvas>
   <div id="hud">
     <div class="hud-player hud-left">

@@ -20,10 +20,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
 /* ── SCREENS ── */
 .screen{position:fixed;inset:0;display:none;z-index:10;}
 /* screen-game keeps its canvas alive — never hidden by .screen system */
-#screen-game{display:none;}
-#screen-game.active{display:block;}
+/* screen-game managed by JS */
 .screen.active{display:flex;}
-#screen-game{z-index:11;}
+
 /* Gameover is NOT part of .screen — standalone overlay */
 /* screen-gameover overlays ON TOP of screen-game — never hides the canvas */
 #screen-gameover{
@@ -42,12 +41,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
 
 /* ══════════ SPLASH ══════════ */
 #screen-splash{
-  position:fixed;inset:0;z-index:10;
+  position:fixed;inset:0;z-index:15;
   display:flex;align-items:center;justify-content:center;flex-direction:column;
 }
 /* screen-game: always in DOM, visibility toggled (never display:none) */
+/* screen-game is always in DOM — JS toggles visibility, never display:none */
 #screen-game{
-  position:fixed;inset:0;z-index:10;
+  position:fixed;inset:0;
+  z-index:9;
   visibility:hidden;
   pointer-events:none;
 }
@@ -298,6 +299,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);font-fam
 /* ══════════ MODAL ══════════ */
 .modal-overlay {
   position: fixed;
+  z-index: 10000;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
   z-index: 200;

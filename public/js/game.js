@@ -13,19 +13,24 @@ const WEAPON_COLORS = { weapon_default:0x9b30e8, weapon_laser:0xff0088, weapon_f
 
 // ── Screens ───────────────────────────────────────────
 function showScreen(id) {
-  // Hide all managed screens
-  ['screen-splash','screen-mainmenu','screen-lobby','screen-game'].forEach(sid => {
+  // Manage each screen explicitly
+  const screens = ['screen-splash','screen-mainmenu','screen-lobby','screen-game'];
+  screens.forEach(sid => {
     const el = document.getElementById(sid);
     if (!el) return;
     if (sid === 'screen-game') {
-      // NEVER set display:none on screen-game — it would kill the WebGL context
-      el.style.visibility = (sid === id) ? 'visible' : 'hidden';
-      el.style.pointerEvents = (sid === id) ? 'all' : 'none';
+      // NEVER use display:none — kills WebGL. Use visibility instead.
+      const active = (sid === id);
+      el.style.visibility = active ? 'visible' : 'hidden';
+      el.style.pointerEvents = active ? 'all' : 'none';
+      el.style.zIndex = active ? '12' : '9';
     } else {
-      el.style.display = (sid === id) ? 'flex' : 'none';
+      const active = (sid === id);
+      el.style.display = active ? 'flex' : 'none';
+      el.style.zIndex = active ? '15' : '';
     }
   });
-  // Also deactivate .screen elements (lobby/mainmenu)
+  // Sync .active class for CSS that depends on it
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(id);
   if (target) target.classList.add('active');
