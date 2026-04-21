@@ -9,7 +9,7 @@
 <body>
 
 <!-- ══════════ SPLASH / LOGIN ══════════ -->
-<div id="screen-splash" class="screen active">
+<div id="screen-splash">
   <div class="splash-bg"></div>
   <div class="splash-particles" id="particles"></div>
 
@@ -93,6 +93,9 @@
       <button class="menu-nav-btn" id="nav-shop" onclick="menuNav('shop')">
         <span class="nav-icon">🛍️</span><span class="nav-label">Shop</span>
       </button>
+      <button class="menu-nav-btn" id="nav-locker" onclick="menuNav('locker')">
+        <span class="nav-icon">🔒</span><span class="nav-label">Locker</span>
+      </button>
       <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
         <span class="nav-icon">📰</span><span class="nav-label">News</span>
       </button>
@@ -168,7 +171,7 @@
       <div class="shop-header">
         <div class="shop-tabs">
           <button class="shop-tab active" onclick="shopTab('skin')">🎨 Skins</button>
-          <button class="shop-tab" onclick="shopTab('spell')">🔫 Weapon FX</button>
+          <button class="shop-tab" onclick="shopTab('weapon')">🔫 Weapons</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
           <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
@@ -215,6 +218,20 @@
           <div id="profile-lookup-result" class="profile-lookup-result hidden"></div>
         </div>
       </div>
+    </div>
+
+    <!-- LOCKER PANEL -->
+    <div class="menu-panel" id="panel-locker">
+      <div class="locker-header">
+        <div class="locker-title">🔒 Your Locker</div>
+        <div class="locker-tabs">
+          <button class="locker-tab active" onclick="lockerTab('skin',this)">🎨 Skins</button>
+          <button class="locker-tab" onclick="lockerTab('weapon',this)">🔫 Weapons</button>
+          <button class="locker-tab" onclick="lockerTab('title',this)">🏷️ Titles</button>
+          <button class="locker-tab" onclick="lockerTab('emote',this)">😄 Emotes</button>
+        </div>
+      </div>
+      <div id="locker-grid" class="locker-grid"></div>
     </div>
 
     <!-- NEWS PANEL -->
@@ -425,7 +442,7 @@
 </div>
 
 <!-- ══════════ GAME ══════════ -->
-<div id="screen-game" class="screen">
+<div id="screen-game">
   <canvas id="game-canvas"></canvas>
   <div id="hud">
     <div class="hud-player hud-left">
