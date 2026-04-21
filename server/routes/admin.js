@@ -158,3 +158,38 @@ router.delete('/news/:id', adminAuth, async (req, res) => {
 });
 
 module.exports = router;
+
+// POST /api/admin/removeskin { username, itemId }
+router.post('/removeskin', adminAuth, async (req, res) => {
+  try {
+    const { username, itemId } = req.body;
+    if (!username || !itemId) return res.status(400).json({ error: 'Username and itemId required.' });
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const defaultItems = ['skin_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'];
+    if (defaultItems.includes(itemId)) return res.status(400).json({ error: 'Cannot remove default/starter items.' });
+    user.inventory = user.inventory.filter(i => i !== itemId);
+    // Unequip if equipped
+    if (user.equippedSkin  === itemId) user.equippedSkin  = 'skin_default';
+    if (user.equippedSpell === itemId) user.equippedSpell = 'spell_default';
+    if (user.equippedTitle === itemId) user.equippedTitle = 'title_wizard';
+    await user.save();
+    res.json({ message: `Removed item "${itemId}" from ${username}.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/removecoins { username, amount }
+router.post('/removecoins', adminAuth, async (req, res) => {
+  try {
+    const { username, amount } = req.body;
+    if (!username || !amount || Number(amount) <= 0) return res.status(400).json({ error: 'Username and positive amount required.' });
+    const user = await User.findOneAndUpdate(
+      { username },
+      { $inc: { coins: -Number(amount) } },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    if (user.coins < 0) { user.coins = 0; await user.save(); }
+    res.json({ message: `Removed ${amount} coins from ${username}. New total: ${user.coins}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});

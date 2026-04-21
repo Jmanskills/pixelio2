@@ -228,12 +228,18 @@ function renderShop() {
     }else if(equipped){btn.textContent='✓ Equipped';btn.className+=' equipped-btn';btn.disabled=true;}
     else if(owned){
       btn.textContent='Equip';btn.className+=' equip';btn.onclick=()=>equipItem(item.id);
-      // Gift button for owned paid items
-      if(item.price>0){const gb=document.createElement('button');gb.className='shop-item-btn gift-btn';gb.textContent='🎁 Gift';gb.onclick=()=>openGiftModal(item);card.appendChild(gb);}
     }
     else if(item.price===0){btn.textContent='Free — Equip';btn.className+=' equip';btn.onclick=()=>buyAndEquip(item.id,0);}
     else{btn.textContent='🪙 '+item.price;if(profile.coins<item.price)btn.disabled=true;btn.onclick=()=>buyAndEquip(item.id,item.price);}
     card.appendChild(preview); card.appendChild(name); card.appendChild(desc); card.appendChild(btn);
+    // Gift button for all paid items (whether you own it or not)
+    if(item.price > 0 && item.category !== 'emote') {
+      const gb = document.createElement('button');
+      gb.className = 'shop-item-btn gift-btn';
+      gb.textContent = '🎁 Gift to Friend';
+      gb.onclick = () => openGiftModal(item);
+      card.appendChild(gb);
+    }
     grid.appendChild(card);
   });
 }
@@ -395,6 +401,22 @@ async function adminGiveCoins() {
   const res=await apiFetch('/api/admin/givecoins','POST',{username,amount});
   showAdminMsg(res?res.message:'Error giving coins.');
 }
+async function adminRemoveCoins() {
+  const username = document.getElementById('admin-removecoins-username').value.trim();
+  const amount = parseInt(document.getElementById('admin-removecoins-amount').value);
+  if (!username || !amount || amount < 1) { showAdminMsg('Username and valid amount required.'); return; }
+  const res = await apiFetch('/api/admin/removecoins', 'POST', { username, amount });
+  showAdminMsg(res ? res.message : 'Error removing coins.');
+}
+
+async function adminRemoveSkin() {
+  const username = document.getElementById('admin-removeskin-username').value.trim();
+  const itemId   = document.getElementById('admin-removeskin-itemid').value.trim();
+  if (!username || !itemId) { showAdminMsg('Username and item ID required.'); return; }
+  const res = await apiFetch('/api/admin/removeskin', 'POST', { username, itemId });
+  showAdminMsg(res ? res.message : 'Error removing item.');
+}
+
 function showAdminMsg(msg) {
   const el=document.getElementById('admin-give-msg'); if(!el){showReportConfirmation(msg);return;}
   el.textContent=msg;el.className='friend-msg success';el.classList.remove('hidden');
@@ -535,59 +557,46 @@ function addTrees(){const tm=new THREE.MeshLambertMaterial({color:0x5a3a1a}),lm=
 function addLights(){scene.add(new THREE.AmbientLight(0x6688aa,1.2));const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(8,20,10);sun.castShadow=true;sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;scene.add(sun);const fill=new THREE.DirectionalLight(0x4466aa,.6);fill.position.set(-8,10,-8);scene.add(fill);const r1=new THREE.PointLight(0x5500cc,.6,35);r1.position.set(-15,8,-15);scene.add(r1);const r2=new THREE.PointLight(0x0055aa,.6,35);r2.position.set(15,8,15);scene.add(r2);}
 function addSkybox(){const sky=new THREE.Mesh(new THREE.SphereGeometry(100,16,8),new THREE.MeshBasicMaterial({color:0x050312,side:THREE.BackSide}));scene.add(sky);const sv=[];for(let i=0;i<800;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=90;sv.push(r*Math.sin(p)*Math.cos(t),r*Math.cos(p),r*Math.sin(p)*Math.sin(t));}const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.3})));}
 
-function createWizardMesh(skinItemId, spellItemId){
-  // Simple clean capsule-style character — replace body with your custom model later
-  const sc = SKIN_COLORS[skinItemId] || 0x6a0dad;
-  const gc = SPELL_COLORS[spellItemId] || sc;
-  const g  = new THREE.Group();
+function createWizardMesh(skinItemId, spellItemId) {
+  const robeColor  = SKIN_COLORS[skinItemId]  || 0x6a0dad;
+  const spellColor = SPELL_COLORS[spellItemId] || robeColor;
+  const group = new THREE.Group();
+  const robeMat = new THREE.MeshLambertMaterial({ color: robeColor });
 
-  const mat  = new THREE.MeshLambertMaterial({color: sc});
-  const dark = new THREE.MeshLambertMaterial({color: 0x111122});
-  const skin = new THREE.MeshLambertMaterial({color: 0xf0c890});
-  const grey = new THREE.MeshLambertMaterial({color: 0x444455});
-  const blk  = new THREE.MeshLambertMaterial({color: 0x222233});
-
-  // Legs
-  const leg = new THREE.CylinderGeometry(.13,.13,.7,8);
-  const lL=new THREE.Mesh(leg,blk); lL.position.set(-.17,.35,0); lL.castShadow=true; g.add(lL);
-  const lR=new THREE.Mesh(leg,blk); lR.position.set( .17,.35,0); lR.castShadow=true; g.add(lR);
-
-  // Torso
-  const torso=new THREE.Mesh(new THREE.CylinderGeometry(.26,.28,.75,12),mat);
-  torso.position.y=1.07; torso.castShadow=true; g.add(torso);
-
-  // Arms
-  const arm=new THREE.CylinderGeometry(.1,.1,.65,8);
-  const aL=new THREE.Mesh(arm,mat); aL.position.set(-.38,.95,0); aL.castShadow=true; g.add(aL);
-  const aR=new THREE.Mesh(arm,mat); aR.position.set( .38,.95,0); aR.castShadow=true; g.add(aR);
+  // Robe body
+  const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 1.6, 8), robeMat);
+  robe.position.y = 0.8; robe.castShadow = true; group.add(robe);
 
   // Head
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.26,10,8),skin);
-  head.position.y=1.73; head.castShadow=true; g.add(head);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), new THREE.MeshLambertMaterial({ color: 0xf5d5a0 }));
+  head.position.y = 1.9; head.castShadow = true; group.add(head);
 
-  // Simple helmet (flat cylinder cap)
-  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.15,12),mat);
-  cap.position.y=1.93; g.add(cap);
-  const capTop=new THREE.Mesh(new THREE.SphereGeometry(.28,10,6,[0,Math.PI*2,0,Math.PI*.5]),mat);
-  capTop.position.y=2.0; g.add(capTop);
+  // Hat brim
+  const hatMat = new THREE.MeshLambertMaterial({ color: 0x111122 });
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.08, 12), hatMat);
+  brim.position.y = 2.1; group.add(brim);
 
-  // Gun
-  const gunG=new THREE.Group(); gunG.position.set(.38,.65,.15);
-  const gBody=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.42),grey); gBody.position.z=.05; gunG.add(gBody);
-  const gBar =new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.32,6),grey); gBar.rotation.x=Math.PI/2; gBar.position.z=.35; gunG.add(gBar);
-  g.add(gunG);
+  // Hat cone
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.7, 12), hatMat);
+  cone.position.y = 2.55; group.add(cone);
 
-  // Muzzle glow
-  const glow=new THREE.PointLight(gc,0.7,2.5); glow.position.set(.38,.65,.65); g.add(glow);
+  // Staff
+  const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), new THREE.MeshLambertMaterial({ color: 0x8b5e3c }));
+  staff.position.set(0.55, 1.1, 0); staff.rotation.z = 0.1; group.add(staff);
 
-  // Shield
-  const shield=new THREE.Mesh(
-    new THREE.SphereGeometry(1.1,16,12),
-    new THREE.MeshBasicMaterial({color:0x44ffcc,transparent:true,opacity:.2,side:THREE.DoubleSide})
-  );
-  shield.position.y=1.0; shield.visible=false; g.add(shield);
-  g.userData.shield=shield;
-  return g;
+  // Staff crystal (spell color)
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshBasicMaterial({ color: spellColor }));
+  crystal.position.set(0.65, 2.25, 0); group.add(crystal);
+
+  // Glow
+  const glow = new THREE.PointLight(spellColor, 1.2, 5);
+  glow.position.set(0.65, 2.25, 0); group.add(glow);
+
+  // Shield bubble
+  const shield = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+  shield.position.y = 1.0; shield.visible = false; group.add(shield);
+  group.userData.shield = shield;
+  return group;
 }
 function setShieldVisible(id,v){if(playerMeshes[id])playerMeshes[id].userData.shield.visible=v;}
 const BSC={fireball:0xff4400,iceshard:0x88ddff,thunder:0xffee00};
@@ -660,29 +669,32 @@ function renderLoop(){
 function onResize(){if(!renderer)return;renderer.setSize(window.innerWidth,window.innerHeight);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();}
 
 let _gameOverShown=false;
-function showGameOver(){
-  _gameOverShown=true;
-  // The overlay has its own solid background — no need to stop the canvas
-  const go=document.getElementById('screen-gameover');
-  go.classList.add('gameover-visible');
+function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
+  gameRunning = false;
+  removeInputListeners();
+  hideReportModal(); hideEmoteWheel();
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+
+  const isDraw = iWon === null;
+  document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
+  document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
+  let sub;
+  if (isDraw)          sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
+  else if (disconnected) sub = 'Opponent disconnected — Victory!';
+  else if (iWon)       sub = `You defeated ${winnerName}!`;
+  else                 sub = `${winnerName} wins this round.`;
+  document.getElementById('gameover-sub').textContent = sub;
+  document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
+
+  // Use showScreen — this removes 'active' from screen-game and adds it to screen-gameover
+  showScreen('screen-gameover');
 }
-function hideGameOver(){
-  _gameOverShown=false;
-  const go=document.getElementById('screen-gameover');
-  go.classList.remove('gameover-visible');
-}
-function endGame(iWon,winnerName,disconnected,coinsEarned,quitterName){
-  if(_gameOverShown)return;
-  removeInputListeners();hideReportModal();hideEmoteWheel();
-  const isDraw=iWon===null;
-  document.getElementById('gameover-icon').textContent=isDraw?'🤝':iWon?'🏆':'💀';
-  document.getElementById('gameover-title').textContent=isDraw?'DRAW':iWon?'YOU WIN!':'DEFEATED!';
-  let sub;if(isDraw)sub=quitterName?`${quitterName} quit the match.`:'The match ended in a draw.';else if(disconnected)sub='Opponent disconnected — Victory!';else if(iWon)sub=`You defeated ${winnerName}!`;else sub=`${winnerName} wins this round.`;
-  document.getElementById('gameover-sub').textContent=sub;
-  document.getElementById('gameover-coins').textContent=coinsEarned>0?`+🪙 ${coinsEarned} coins earned!`:'';
-  showGameOver();
-  // Stop game AFTER overlay is shown so canvas is still valid underneath
-  gameRunning=false;
+
+// Legacy stubs kept for socket handlers that call these
+function showGameOver() { /* handled in endGame */ }
+function hideGameOver() {
+  const go = document.getElementById('screen-gameover');
+  go.classList.remove('active');
 }
 
 function quitMatch(){if(!socket||!gameRunning)return;if(!confirm('Quit? Match ends as draw.'))return;socket.emit('quitMatch');}

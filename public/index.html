@@ -354,9 +354,22 @@
           <button class="btn-primary" onclick="adminGiveItem()" style="align-self:flex-start">🎁 Give Item</button>
         </div>
         <div class="admin-form" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
-          <input class="auth-input" id="admin-coins-username" placeholder="Target username..." />
-          <input class="auth-input" id="admin-coins-amount" type="number" placeholder="Coins amount..." min="1" />
+          <div class="admin-section-title">🪙 Give Coins</div>
+          <input class="auth-input" id="admin-coins-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-coins-amount" type="number" placeholder="Amount..." min="1" />
           <button class="btn-primary" onclick="adminGiveCoins()" style="align-self:flex-start">🪙 Give Coins</button>
+        </div>
+        <div class="admin-form" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="admin-section-title" style="color:#ff8888">⛔ Remove Coins</div>
+          <input class="auth-input" id="admin-removecoins-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-removecoins-amount" type="number" placeholder="Amount to remove..." min="1" />
+          <button class="btn-secondary" onclick="adminRemoveCoins()" style="align-self:flex-start;border-color:var(--red);color:#ff8888">⛔ Remove Coins</button>
+        </div>
+        <div class="admin-form" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="admin-section-title" style="color:#ff8888">🗑️ Remove Item/Skin</div>
+          <input class="auth-input" id="admin-removeskin-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-removeskin-itemid" placeholder="Item ID (e.g. skin_crimson, robe_gold...)" />
+          <button class="btn-secondary" onclick="adminRemoveSkin()" style="align-self:flex-start;border-color:var(--red);color:#ff8888">🗑️ Remove Item</button>
         </div>
         <div id="admin-give-msg" class="friend-msg hidden" style="margin-top:12px"></div>
       </div>
@@ -462,7 +475,7 @@
   </div>
 
 <!-- ══════════ GAME OVER ══════════ -->
-<div id="screen-gameover">
+<div id="screen-gameover" class="screen">
   <div class="gameover-box">
     <div class="gameover-icon" id="gameover-icon">🏆</div>
     <div class="gameover-title" id="gameover-title">YOU WIN!</div>
