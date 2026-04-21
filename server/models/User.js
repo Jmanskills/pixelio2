@@ -27,7 +27,10 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, default: '', maxlength: 150 },
   isAdmin: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false },
-  banReason: { type: String, default: '' },
+  banReason:      { type: String, default: '' },
+  tempBanExpires:  { type: Date, default: null },
+  isMuted:         { type: Boolean, default: false },
+  muteExpires:     { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 

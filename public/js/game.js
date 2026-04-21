@@ -337,12 +337,14 @@ function adminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
   const tabs=document.querySelectorAll('.admin-tab');
-  const tabNames=['users','reports','news','give'];
+  const tabNames=['users','reports','news','give','matches','announce'];
   const idx=tabNames.indexOf(tab); if(tabs[idx])tabs[idx].classList.add('active');
-  const panel=document.getElementById('admin-panel-'+tab); if(panel)panel.classList.add('active');
+  const panel=document.getElementById('admin-panel-'+tab);
+  if(panel){ panel.classList.remove('hidden'); panel.classList.add('active'); }
   if(tab==='reports')adminLoadReports();
   if(tab==='news')adminLoadNewsPanel();
   if(tab==='give')adminPopulateItemSelect();
+  if(tab==='matches')adminLoadMatches();
 }
 async function adminSearchUsers() {
   const search=document.getElementById('admin-user-search').value.trim();
@@ -604,9 +606,9 @@ function blendColors(c1,c2,t){const r1=(c1>>16)&0xff,g1=(c1>>8)&0xff,b1=c1&0xff,
 function createProjectileMesh(spellKey,spellItemId){let c=BSC[spellKey]||0xffffff;const ov=SPELL_COLORS[spellItemId];if(ov)c=blendColors(c,ov,.5);const geo=spellKey==='iceshard'?new THREE.OctahedronGeometry(.2):new THREE.SphereGeometry(.25,8,8);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.add(new THREE.PointLight(c,1.5,4));return m;}
 
 function startGame(players){
-  _gameOverShown=false;
-  hideGameOver();
-  if(!renderer)initThree();  // MUST init before using scene
+  // Hide gameover overlay if visible
+  document.getElementById('screen-gameover').classList.remove('gameover-active');
+  if(!renderer) initThree();
   showScreen('screen-game');
   gameRunning=true;
   if(scene){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));}
@@ -673,28 +675,24 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   gameRunning = false;
   removeInputListeners();
   hideReportModal(); hideEmoteWheel();
-  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
 
   const isDraw = iWon === null;
   document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
   document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
   let sub;
-  if (isDraw)          sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
+  if (isDraw)            sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
   else if (disconnected) sub = 'Opponent disconnected — Victory!';
-  else if (iWon)       sub = `You defeated ${winnerName}!`;
-  else                 sub = `${winnerName} wins this round.`;
+  else if (iWon)         sub = `You defeated ${winnerName}!`;
+  else                   sub = `${winnerName} wins this round.`;
   document.getElementById('gameover-sub').textContent = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Use showScreen — this removes 'active' from screen-game and adds it to screen-gameover
-  showScreen('screen-gameover');
+  // Show overlay ON TOP of game canvas — do NOT call showScreen (that would hide canvas and kill WebGL)
+  document.getElementById('screen-gameover').classList.add('gameover-active');
 }
 
-// Legacy stubs kept for socket handlers that call these
-function showGameOver() { /* handled in endGame */ }
 function hideGameOver() {
-  const go = document.getElementById('screen-gameover');
-  go.classList.remove('active');
+  document.getElementById('screen-gameover').classList.remove('gameover-active');
 }
 
 function quitMatch(){if(!socket||!gameRunning)return;if(!confirm('Quit? Match ends as draw.'))return;socket.emit('quitMatch');}
@@ -740,6 +738,8 @@ function connectSocket(){
   socket.on('inviteDeclined',({byUsername})=>{showReportConfirmation(`${byUsername} declined your invite.`);});
   socket.on('inviteError',({message})=>{showReportConfirmation(message);});
   socket.on('waiting',({message})=>{document.getElementById('lobby-msg').textContent=message;});
+  socket.on('announcement',({message,author})=>{ showAnnouncementToast(message, author); });
+  socket.on('muted',({minutes})=>{ showReportConfirmation(`🔇 You have been muted for ${minutes} minute(s).`); });
 }
 function joinQueue(){
   if(!socket)connectSocket();
@@ -1029,6 +1029,74 @@ async function sendGift() {
   renderShop();
   closeGiftModal();
   showReportConfirmation(res.message);
+}
+
+
+// ── New admin functions ───────────────────────────────
+async function adminTempBan() {
+  const username = document.getElementById('admin-tempban-username').value.trim();
+  const hours    = document.getElementById('admin-tempban-hours').value;
+  const reason   = document.getElementById('admin-tempban-reason').value.trim();
+  if(!username||!hours){showAdminMsg('Username and hours required.');return;}
+  const res = await apiFetch('/api/admin/tempban','POST',{username,hours:Number(hours),reason});
+  showAdminMsg(res?res.message:'Error.');
+}
+
+async function adminMutePlayer() {
+  const username = document.getElementById('admin-mute-username').value.trim();
+  const minutes  = document.getElementById('admin-mute-minutes').value;
+  if(!username){showAdminMsg('Username required.');return;}
+  const res = await apiFetch('/api/admin/mute','POST',{username,minutes:Number(minutes)||10});
+  showAdminMsg(res?res.message:'Error.');
+}
+
+async function adminUnmutePlayer() {
+  const username = document.getElementById('admin-mute-username').value.trim();
+  if(!username){showAdminMsg('Username required.');return;}
+  const res = await apiFetch('/api/admin/unmute','POST',{username});
+  showAdminMsg(res?res.message:'Error.');
+}
+
+async function adminSendAnnouncement() {
+  const message = document.getElementById('admin-announce-text').value.trim();
+  if(!message){showAdminMsg('Message required.');return;}
+  const btn = document.querySelector('[onclick="adminSendAnnouncement()"]');
+  if(btn){btn.disabled=true;btn.textContent='Sending...';}
+  const res = await apiFetch('/api/admin/announce','POST',{message});
+  if(btn){btn.disabled=false;btn.textContent='📢 Send to All Players';}
+  const msgEl = document.getElementById('admin-announce-msg');
+  if(msgEl&&res){msgEl.textContent=res.message;msgEl.className='friend-msg success';msgEl.classList.remove('hidden');setTimeout(()=>msgEl.classList.add('hidden'),4000);}
+  if(res) document.getElementById('admin-announce-text').value='';
+}
+
+async function adminLoadMatches() {
+  const list = document.getElementById('admin-matches-list');
+  list.innerHTML = '<div class="admin-empty">Loading...</div>';
+  const res = await apiFetch('/api/admin/activematches','GET');
+  if(!res){list.innerHTML='<div class="admin-empty">Error loading matches.</div>';return;}
+  if(!res.matches.length){list.innerHTML='<div class="admin-empty">No active matches right now.</div>';return;}
+  list.innerHTML = res.matches.map(m=>`
+    <div class="admin-report-row" style="margin-bottom:8px">
+      <div class="admin-report-header">
+        <span>${m.isPractice?'🤖 Practice':'⚔️ Live Match'}</span>
+        <span class="tag">${m.winner?'Finished':'In Progress'}</span>
+      </div>
+      <div style="margin-top:6px;font-size:.8rem;color:var(--gray)">
+        ${m.players.map(p=>`<span style="margin-right:12px">${escHtml(p.username)}: ${p.hp}HP ${p.alive?'✅':'💀'}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function showAnnouncementToast(message, author) {
+  const el = document.getElementById('announcement-toast');
+  document.getElementById('announcement-text').textContent = message;
+  document.getElementById('announcement-author').textContent = author ? `— ${author}` : '';
+  el.style.display = 'block';
+  el.style.animation = 'fadeInDown .4s ease';
+  setTimeout(() => {
+    el.style.animation = 'fadeOut .5s ease forwards';
+    setTimeout(() => { el.style.display = 'none'; }, 500);
+  }, 5000);
 }
 
 // ══════════════════════════════════════════════════════

@@ -193,3 +193,78 @@ router.post('/removecoins', adminAuth, async (req, res) => {
     res.json({ message: `Removed ${amount} coins from ${username}. New total: ${user.coins}` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// POST /api/admin/tempban { username, hours, reason }
+router.post('/tempban', adminAuth, async (req, res) => {
+  try {
+    const { username, hours, reason } = req.body;
+    if (!username || !hours) return res.status(400).json({ error: 'Username and hours required.' });
+    if (isOwner(username)) return res.status(400).json({ error: 'Cannot temp-ban the owner.' });
+    const expires = new Date(Date.now() + Number(hours) * 3600000);
+    const user = await User.findOneAndUpdate(
+      { username },
+      { isBanned: true, banReason: reason || `Temp ban (${hours}h)`, tempBanExpires: expires },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    res.json({ message: `${username} temp-banned for ${hours} hour(s). Expires: ${expires.toLocaleString()}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/mute { username, minutes }
+router.post('/mute', adminAuth, async (req, res) => {
+  try {
+    const { username, minutes } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username required.' });
+    const mins = parseInt(minutes) || 10;
+    const expires = new Date(Date.now() + mins * 60000);
+    await User.findOneAndUpdate({ username }, { isMuted: true, muteExpires: expires });
+    // Notify player if online
+    const { getOnlineUsers, getIO } = require('../game');
+    const sid = getOnlineUsers()[username];
+    const io  = getIO();
+    if (sid && io) io.to(sid).emit('muted', { minutes: mins });
+    res.json({ message: `${username} muted for ${mins} minute(s).` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/unmute { username }
+router.post('/unmute', adminAuth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    await User.findOneAndUpdate({ username }, { isMuted: false, muteExpires: null });
+    res.json({ message: `${username} unmuted.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/announce { message }
+router.post('/announce', adminAuth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Message required.' });
+    const { getIO } = require('../game');
+    const io = getIO();
+    if (!io) return res.status(500).json({ error: 'Server not ready.' });
+    io.emit('announcement', { message: message.trim(), author: req.admin.username });
+    res.json({ message: `Announcement sent to all players.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/activematches
+router.get('/activematches', adminAuth, async (req, res) => {
+  try {
+    const { getRooms } = require('../game');
+    const rooms = getRooms();
+    const matches = Object.values(rooms).map(r => ({
+      roomId: r.roomId,
+      isPractice: !!r.isPractice,
+      players: Object.values(r.players).map(p => ({
+        username: p.username,
+        hp: p.hp,
+        alive: p.alive
+      })),
+      winner: r.winner || null
+    }));
+    res.json({ matches, count: matches.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});

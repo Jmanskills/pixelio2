@@ -32,6 +32,11 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username: username.trim() });
     if (!user || !(await user.comparePassword(password))) return res.status(401).json({ error: 'Invalid username or password.' });
+    // Auto-expire temp bans
+    if (user.isBanned && user.tempBanExpires && new Date() > user.tempBanExpires) {
+      user.isBanned = false; user.banReason = ''; user.tempBanExpires = null;
+      await user.save();
+    }
     if (user.isBanned) return res.status(403).json({ error: `You are banned. Reason: ${user.banReason || 'Violation of rules.'}` });
     if (isAdminUsername(user.username) && !user.isAdmin) { user.isAdmin = true; await user.save(); }
     res.json({ token: signToken(user), profile: user.safeProfile() });
@@ -46,6 +51,11 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(auth.replace('Bearer ', ''), JWT_SECRET);
     const user = await User.findById(decoded.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
+    // Auto-expire temp bans
+    if (user.isBanned && user.tempBanExpires && new Date() > user.tempBanExpires) {
+      user.isBanned = false; user.banReason = ''; user.tempBanExpires = null;
+      await user.save();
+    }
     if (user.isBanned) return res.status(403).json({ error: `You are banned. Reason: ${user.banReason || 'Violation of rules.'}` });
     // Always enforce admin status for ADMIN_USERNAMES
     if (isAdminUsername(user.username) && !user.isAdmin) {

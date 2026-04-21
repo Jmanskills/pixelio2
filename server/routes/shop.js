@@ -57,8 +57,6 @@ router.post('/equip', authMiddleware, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
 });
 
-module.exports = router;
-
 // POST /api/shop/gift  { toUsername, itemId }
 router.post('/gift', authMiddleware, async (req, res) => {
   try {
@@ -89,3 +87,5 @@ router.post('/gift', authMiddleware, async (req, res) => {
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
 });
+
+module.exports = router;

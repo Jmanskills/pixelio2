@@ -456,5 +456,5 @@ function setupGameSockets(io) {
   });
 }
 
-module.exports = { setupGameSockets, SPELLS, getOnlineUsers: () => onlineUsers, getIO: () => _io };
+module.exports = { setupGameSockets, SPELLS, getOnlineUsers: () => onlineUsers, getIO: () => _io, getRooms: () => rooms };
 let _io = null;
