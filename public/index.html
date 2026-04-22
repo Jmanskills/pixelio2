@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pixelio</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+
+<!-- ══════════ SPLASH / LOGIN ══════════ -->
+<div id="screen-splash" style="display:flex;z-index:15;">
+  <div class="splash-bg"></div>
+  <div class="splash-particles" id="particles"></div>
+
+  <!-- Top navbar -->
+  <div class="splash-navbar">
+    <div class="splash-nav-logo">Pixelio</div>
+    <div class="splash-nav-links">
+      <button class="splash-nav-btn" onclick="openAuthModal('login')">Log in</button>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="splash-hero">
+    <div class="splash-hero-left">
+      <div class="splash-tagline">Pixelio is a fun action<br/>game for school, buy outfits,<br/>play with friends, and<br/>have fun!</div>
+      <div class="splash-hero-btns">
+        <button class="splash-hero-btn splash-hero-btn-register" onclick="openAuthModal('register')">register</button>
+        <button class="splash-hero-btn splash-hero-btn-login" onclick="openAuthModal('login')">Log in</button>
+      </div>
+    </div>
+    <div class="splash-hero-right">
+      <canvas id="splash-wizard-canvas" width="280" height="360"></canvas>
+    </div>
+  </div>
+
+  <!-- Auto-login loading -->
+  <div id="splash-loading" style="display:none">
+    <div class="lobby-spinner"></div>
+    <div class="splash-loading-text">Restoring your session...</div>
+  </div>
+</div>
+
+<!-- ══════════ AUTH MODAL ══════════ -->
+<div id="auth-modal" class="modal-overlay hidden">
+  <div class="modal-box auth-modal-box">
+    <div class="auth-modal-logo">🎮 Pixelio</div>
+    <div class="auth-modal-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log in</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+    <div id="auth-error" class="auth-error hidden"></div>
+    <input class="auth-input" id="auth-username" type="text" placeholder="Username" maxlength="20" autocomplete="off"/>
+    <input class="auth-input" id="auth-password" type="password" placeholder="Password" autocomplete="off"/>
+    <button class="btn-primary wide" id="btn-auth-submit">Enter the Arena</button>
+    <button class="auth-modal-close" id="btn-auth-close">✕ Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════ MAIN MENU ══════════ -->
+<div id="screen-mainmenu" class="screen">
+  <div class="menu-bg"></div>
+  <div class="menu-particles" id="menu-particles"></div>
+
+  <!-- Top bar -->
+  <div class="menu-topbar">
+    <div class="menu-topbar-logo">⚡ PIXELIO</div>
+    <div class="menu-topbar-right">
+      <div class="menu-coins" id="menu-coins">🪙 0</div>
+      <div class="menu-avatar" id="menu-avatar">
+        <div class="avatar-robe" id="avatar-robe"></div>
+      </div>
+      <div class="menu-username-wrap">
+        <div class="menu-title-badge" id="menu-title-badge">Player</div>
+        <div class="menu-username" id="menu-username">Player</div>
+        <div class="menu-wl" id="menu-wl">0W / 0L</div>
+      </div>
+      <button class="btn-icon" id="btn-logout" title="Logout">⏻</button>
+    </div>
+  </div>
+
+  <!-- Nav buttons -->
+  <div class="menu-center">
+    <div class="menu-nav">
+      <button class="menu-nav-btn active" id="nav-play" onclick="menuNav('play')">
+        <span class="nav-icon">⚔️</span><span class="nav-label">Play</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-friends" onclick="menuNav('friends')">
+        <span class="nav-icon">👥</span><span class="nav-label">Friends</span>
+        <span class="nav-badge hidden" id="friends-badge">0</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-shop" onclick="menuNav('shop')">
+        <span class="nav-icon">🛍️</span><span class="nav-label">Shop</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-locker" onclick="menuNav('locker')">
+        <span class="nav-icon">🔒</span><span class="nav-label">Locker</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
+        <span class="nav-icon">📰</span><span class="nav-label">News</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-profile" onclick="menuNav('profile')">
+        <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-leaderboard" onclick="menuNav('leaderboard')">
+        <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-settings" onclick="menuNav('settings')">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </button>
+      <button class="menu-nav-btn" id="nav-admin" onclick="menuNav('admin')" style="display:none">
+        <span class="nav-icon">🛡️</span><span class="nav-label">Admin</span>
+      </button>
+    </div>
+
+    <!-- PLAY PANEL -->
+    <div class="menu-panel active" id="panel-play">
+      <div class="play-wizard-preview">
+        <canvas id="preview-canvas" width="200" height="260"></canvas>
+      </div>
+      <div class="play-actions">
+        <button class="btn-play" id="btn-play-game">
+          <span class="play-btn-icon">⚔️</span>
+          <span class="play-btn-text">FIND MATCH</span>
+          <span class="play-btn-sub">Join the ranked queue</span>
+        </button>
+        <div class="play-stats-row">
+          <div class="stat-box">
+            <div class="stat-val" id="stat-wins">0</div>
+            <div class="stat-lbl">Wins</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="stat-losses">0</div>
+            <div class="stat-lbl">Losses</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="stat-ratio">—</div>
+            <div class="stat-lbl">Win Rate</div>
+          </div>
+        </div>
+        <div class="play-hint">Earn <span class="gold-text">🪙 50 coins</span> per win · <span class="gold-text">10 coins</span> per match</div>
+        <button class="btn-practice" id="btn-practice-game">
+          🤖 Practice vs Bot
+        </button>
+      </div>
+    </div>
+
+    <!-- FRIENDS PANEL -->
+    <div class="menu-panel" id="panel-friends">
+      <div class="friends-search-row">
+        <input class="auth-input" id="friend-search-input" placeholder="Search by username..." maxlength="20"/>
+        <button class="btn-small" id="btn-send-request">Add Friend</button>
+      </div>
+      <div id="friend-msg" class="friend-msg hidden"></div>
+
+      <!-- Pending requests -->
+      <div class="friends-section" id="requests-section">
+        <div class="friends-section-title">📬 Friend Requests</div>
+        <div id="requests-list" class="friends-list"></div>
+      </div>
+
+      <!-- Friends list -->
+      <div class="friends-section">
+        <div class="friends-section-title">👥 Friends</div>
+        <div id="friends-list" class="friends-list"></div>
+      </div>
+    </div>
+
+    <!-- SHOP PANEL -->
+    <div class="menu-panel" id="panel-shop">
+      <div class="shop-header">
+        <div class="shop-tabs">
+          <button class="shop-tab active" onclick="shopTab('skin')">🎨 Skins</button>
+          <button class="shop-tab" onclick="shopTab('weapon')">🔫 Weapons</button>
+          <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
+          <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
+        </div>
+        <div class="shop-balance">🪙 <span id="shop-coins">0</span></div>
+      </div>
+      <div id="shop-items-grid" class="shop-grid"></div>
+    </div>
+
+    <!-- PROFILE PANEL -->
+    <div class="menu-panel" id="panel-profile">
+      <div class="profile-wrap">
+        <!-- Own profile card -->
+        <div class="profile-card" id="my-profile-card">
+          <div class="profile-avatar-wrap">
+            <canvas id="profile-avatar-canvas" width="120" height="160"></canvas>
+            <div class="profile-avatar-label" id="profile-avatar-label"></div>
+          </div>
+          <div class="profile-info">
+            <div class="profile-username" id="profile-username-display"></div>
+            <div class="profile-title-badge" id="profile-title-display"></div>
+            <div class="profile-bio-wrap">
+              <textarea class="profile-bio-input" id="profile-bio-input" placeholder="Write a short bio..." maxlength="150"></textarea>
+              <button class="btn-small" id="btn-save-bio">Save Bio</button>
+            </div>
+            <div class="profile-stats-row">
+              <div class="stat-box"><div class="stat-val" id="prof-wins">0</div><div class="stat-lbl">Wins</div></div>
+              <div class="stat-box"><div class="stat-val" id="prof-losses">0</div><div class="stat-lbl">Losses</div></div>
+              <div class="stat-box"><div class="stat-val" id="prof-coins">0</div><div class="stat-lbl">Coins</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Avatar picker -->
+        <div class="profile-avatar-section">
+          <div class="profile-section-title">Choose Your Character</div>
+          <div class="avatar-grid" id="avatar-grid"></div>
+        </div>
+        <!-- Look up other player -->
+        <div class="profile-lookup-section">
+          <div class="profile-section-title">Look Up Player</div>
+          <div class="profile-lookup-row">
+            <input class="auth-input" id="profile-lookup-input" placeholder="Enter username..." maxlength="20"/>
+            <button class="btn-small" id="btn-lookup-profile">Search</button>
+          </div>
+          <div id="profile-lookup-result" class="profile-lookup-result hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOCKER PANEL -->
+    <div class="menu-panel" id="panel-locker">
+      <div class="locker-header">
+        <div class="locker-title">🔒 Your Locker</div>
+        <div class="locker-tabs">
+          <button class="locker-tab active" onclick="lockerTab('skin',this)">🎨 Skins</button>
+          <button class="locker-tab" onclick="lockerTab('weapon',this)">🔫 Weapons</button>
+          <button class="locker-tab" onclick="lockerTab('title',this)">🏷️ Titles</button>
+          <button class="locker-tab" onclick="lockerTab('emote',this)">😄 Emotes</button>
+        </div>
+      </div>
+      <div id="locker-grid" class="locker-grid"></div>
+    </div>
+
+    <!-- NEWS PANEL -->
+    <div class="menu-panel" id="panel-news">
+      <div class="news-header">
+        <div class="news-title-bar">📰 News &amp; Updates</div>
+      </div>
+      <div id="news-list" class="news-list">
+        <div class="news-loading">Loading news...</div>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <!-- LEADERBOARD PANEL -->
+    <div class="menu-panel" id="panel-leaderboard">
+      <div class="lb-header">
+        <div class="lb-title">🏆 Leaderboard</div>
+        <div class="lb-tabs">
+          <button class="lb-tab active" onclick="lbTab('wins',this)">🏆 Most Wins</button>
+          <button class="lb-tab" onclick="lbTab('coins',this)">🪙 Most Coins</button>
+          <button class="lb-tab" onclick="lbTab('kd',this)">📊 Best K/D</button>
+        </div>
+      </div>
+      <div id="lb-list" class="lb-list"><div class="lb-loading">Loading...</div></div>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div class="menu-panel" id="panel-settings">
+      <div class="settings-wrap">
+        <div class="settings-section">
+          <div class="settings-title">🎮 Game Settings</div>
+          <div class="settings-row">
+            <div class="settings-label">Mouse Sensitivity</div>
+            <div class="settings-control">
+              <input type="range" id="setting-sensitivity" min="1" max="10" value="5" class="settings-slider"/>
+              <span id="setting-sensitivity-val" class="settings-val">5</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Show FPS Counter</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-fps"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Show Damage Numbers</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-damage" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">🔊 Audio</div>
+          <div class="settings-row">
+            <div class="settings-label">Sound Effects</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-sfx" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Music</div>
+            <div class="settings-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-music"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">⚠️ Account</div>
+          <div class="settings-row">
+            <div class="settings-label">Logged in as</div>
+            <div class="settings-val" id="settings-username"></div>
+          </div>
+          <button class="btn-secondary settings-logout-btn" id="btn-settings-logout">🚪 Log Out</button>
+        </div>
+        <div class="settings-save-row">
+          <button class="btn-primary" id="btn-save-settings">💾 Save Settings</button>
+          <div id="settings-saved-msg" class="hidden settings-saved-msg">✅ Saved!</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-panel" id="panel-admin">
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="adminTab('users')">👥 Users</button>
+        <button class="admin-tab" onclick="adminTab('reports')">🚩 Reports</button>
+        <button class="admin-tab" onclick="adminTab('news')">📰 News</button>
+        <button class="admin-tab" onclick="adminTab('give')">🎁 Give Items</button>
+          <button class="admin-tab" onclick="adminTab('matches')">⚔️ Matches</button>
+          <button class="admin-tab" onclick="adminTab('announce')">📢 Tools</button>
+      </div>
+
+      <!-- USERS TAB -->
+      <div class="admin-panel active" id="admin-panel-users">
+        <div class="admin-search-row">
+          <input class="auth-input" id="admin-user-search" placeholder="Search username..." />
+          <button class="btn-small" onclick="adminSearchUsers()">Search</button>
+        </div>
+        <div id="admin-users-list" class="admin-list"></div>
+      </div>
+
+      <!-- REPORTS TAB -->
+      <div class="admin-panel" id="admin-panel-reports">
+        <button class="btn-small" onclick="adminLoadReports()" style="margin-bottom:12px">🔄 Refresh Reports</button>
+        <div id="admin-reports-list" class="admin-list"></div>
+      </div>
+
+      <!-- NEWS TAB -->
+      <div class="admin-panel" id="admin-panel-news">
+        <div class="admin-form">
+          <input class="auth-input" id="admin-news-title" placeholder="News title..." />
+          <textarea class="modal-textarea" id="admin-news-body" placeholder="News content..." style="min-height:100px"></textarea>
+          <label style="display:flex;align-items:center;gap:8px;color:var(--gray);font-size:.85rem;">
+            <input type="checkbox" id="admin-news-pinned"/> 📌 Pin this post
+          </label>
+          <button class="btn-primary" onclick="adminPostNews()" style="align-self:flex-start">Post News</button>
+        </div>
+        <div id="admin-news-list" class="admin-list" style="margin-top:16px"></div>
+      </div>
+
+      <!-- GIVE ITEMS TAB -->
+      <div class="admin-panel" id="admin-panel-give">
+        <div class="admin-form">
+          <input class="auth-input" id="admin-give-username" placeholder="Target username..." />
+          <select class="modal-select" id="admin-give-item">
+            <option value="">— Select item to give —</option>
+          </select>
+          <button class="btn-primary" onclick="adminGiveItem()" style="align-self:flex-start">🎁 Give Item</button>
+        </div>
+        <div class="admin-form" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <div class="admin-section-title">🪙 Give Coins</div>
+          <input class="auth-input" id="admin-coins-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-coins-amount" type="number" placeholder="Amount..." min="1" />
+          <button class="btn-primary" onclick="adminGiveCoins()" style="align-self:flex-start">🪙 Give Coins</button>
+        </div>
+        <div class="admin-form" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="admin-section-title" style="color:#ff8888">⛔ Remove Coins</div>
+          <input class="auth-input" id="admin-removecoins-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-removecoins-amount" type="number" placeholder="Amount to remove..." min="1" />
+          <button class="btn-secondary" onclick="adminRemoveCoins()" style="align-self:flex-start;border-color:var(--red);color:#ff8888">⛔ Remove Coins</button>
+        </div>
+        <div class="admin-form" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="admin-section-title" style="color:#ff8888">🗑️ Remove Item/Skin</div>
+          <input class="auth-input" id="admin-removeskin-username" placeholder="Username..." />
+          <input class="auth-input" id="admin-removeskin-itemid" placeholder="Item ID (e.g. skin_crimson, robe_gold...)" />
+          <button class="btn-secondary" onclick="adminRemoveSkin()" style="align-self:flex-start;border-color:var(--red);color:#ff8888">🗑️ Remove Item</button>
+        </div>
+        <!-- MATCHES PANEL -->
+        <div class="admin-panel hidden" id="admin-panel-matches">
+          <button class="btn-small" onclick="adminLoadMatches()" style="margin-bottom:12px">🔄 Refresh</button>
+          <div id="admin-matches-list" class="admin-empty">Click refresh to load active matches.</div>
+        </div>
+
+        <!-- ANNOUNCE PANEL -->
+        <div class="admin-panel hidden" id="admin-panel-announce">
+          <div class="admin-form">
+            <textarea class="auth-input" id="admin-announce-text" placeholder="Type your announcement..." rows="3" style="resize:vertical;min-height:80px;font-family:inherit"></textarea>
+            <button class="btn-primary" onclick="adminSendAnnouncement()">📢 Send to All Players</button>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+            <div class="admin-section-title">⏱️ Temp Ban</div>
+            <div class="admin-form">
+              <input class="auth-input" id="admin-tempban-username" placeholder="Username..."/>
+              <input class="auth-input" id="admin-tempban-hours" type="number" placeholder="Hours..." min="1" style="width:90px"/>
+              <input class="auth-input" id="admin-tempban-reason" placeholder="Reason (optional)..."/>
+              <button class="btn-secondary" onclick="adminTempBan()" style="border-color:var(--red);color:#ff8888">⏱️ Temp Ban</button>
+            </div>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+            <div class="admin-section-title">🔇 Mute Player</div>
+            <div class="admin-form">
+              <input class="auth-input" id="admin-mute-username" placeholder="Username..."/>
+              <input class="auth-input" id="admin-mute-minutes" type="number" placeholder="Minutes..." min="1" style="width:90px"/>
+              <button class="btn-secondary" onclick="adminMutePlayer()" style="border-color:#cc8800;color:#ffaa00">🔇 Mute</button>
+              <button class="btn-secondary" onclick="adminUnmutePlayer()" style="border-color:#22aa44;color:#44ff66">🔊 Unmute</button>
+            </div>
+          </div>
+          <div id="admin-announce-msg" class="friend-msg hidden" style="margin-top:10px"></div>
+        </div>
+
+        <div id="admin-give-msg" class="friend-msg hidden" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ LOBBY ══════════ -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-box">
+    <div class="lobby-title" id="lobby-title">🎮 Finding Opponent...</div>
+    <div class="lobby-spinner"></div>
+    <div class="lobby-msg" id="lobby-msg">Joining the queue...</div>
+    <div class="lobby-player">Playing as: <span id="lobby-username"></span></div>
+    <button class="btn-secondary" id="btn-leave-lobby">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════ GAME ══════════ -->
+<div id="screen-game" style="visibility:hidden;pointer-events:none;z-index:9;">
+  <canvas id="game-canvas"></canvas>
+  <div id="hud">
+    <div class="hud-player hud-left">
+      <div class="hud-title" id="hud-title-you"></div>
+      <div class="hud-name" id="hud-name-you">You</div>
+      <div class="hud-hp-bar-wrap"><div class="hud-hp-bar" id="hud-hp-you"></div></div>
+      <div class="hud-hp-text" id="hud-hp-text-you">100 HP</div>
+    </div>
+    <div class="hud-vs">VS</div>
+    <div class="hud-player hud-right">
+      <div class="hud-title" id="hud-title-opp"></div>
+      <div class="hud-name" id="hud-name-opp">Opponent</div>
+      <div class="hud-hp-bar-wrap"><div class="hud-hp-bar hud-hp-opp" id="hud-hp-opp"></div></div>
+      <div class="hud-hp-text" id="hud-hp-text-opp">100 HP</div>
+    </div>
+  </div>
+  <div id="spell-bar">
+    <div class="spell-slot" id="spell-1">
+      <div class="spell-icon">🚀</div><div class="spell-name">Rocket</div>
+      <div class="spell-key">Q</div><div class="spell-cooldown-overlay" id="cd-fireball"></div>
+    </div>
+    <div class="spell-slot" id="spell-2">
+      <div class="spell-icon">🔵</div><div class="spell-name">Blaster</div>
+      <div class="spell-key">E</div><div class="spell-cooldown-overlay" id="cd-iceshard"></div>
+    </div>
+    <div class="spell-slot" id="spell-3">
+      <div class="spell-icon">⚡</div><div class="spell-name">Zapper</div>
+      <div class="spell-key">R</div><div class="spell-cooldown-overlay" id="cd-thunder"></div>
+    </div>
+    <div class="spell-slot" id="spell-4">
+      <div class="spell-icon">🛡️</div><div class="spell-name">Shield</div>
+      <div class="spell-key">F</div><div class="spell-cooldown-overlay" id="cd-shield"></div>
+    </div>
+  </div>
+  <div id="hit-flash"></div>
+  <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
+  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q: Rocket | E: Blaster | R: Zapper | F: Shield &nbsp;|&nbsp; Tab: Emotes</div>
+
+  <!-- Emote button & wheel -->
+  <div id="emote-btn-wrap">
+    <button id="btn-emote-toggle" class="game-btn game-btn-emote" title="Emotes (Tab)">😄 Emotes</button>
+  </div>
+  <div id="emote-wheel" class="hidden">
+    <div class="emote-wheel-title">Choose Emote</div>
+    <div class="emote-grid" id="emote-grid"></div>
+  </div>
+  <div id="game-action-btns">
+    <button class="game-btn game-btn-report" id="btn-report-player" title="Report opponent">🚩 Report</button>
+    <button class="game-btn game-btn-quit"   id="btn-quit-match"   title="Quit match">🚪 Quit</button>
+    <button class="game-btn game-btn-aimbot hidden" id="admin-aimbot-btn" onclick="toggleAimbot()">🎯 Aimbot: OFF</button>
+  </div>
+
+  <!-- Report confirmation toast -->
+  <div id="report-confirmation" class="hidden game-toast">✅ Report submitted.</div>
+</div>
+
+<!-- ══════════ REPORT MODAL ══════════ -->
+<div id="report-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🚩 Report Player</div>
+    <div class="modal-sub">Reporting: <strong id="report-target-name"></strong></div>
+    <input type="hidden" id="report-username-hidden"/>
+    <div class="modal-field">
+      <label class="modal-label">Reason</label>
+      <select class="modal-select" id="report-reason">
+        <option value="">— Select a reason —</option>
+        <option value="cheating">Cheating / Exploiting</option>
+        <option value="inappropriate_name">Inappropriate Username</option>
+        <option value="harassment">Harassment</option>
+        <option value="spam">Spam / Flooding</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Additional details (optional)</label>
+      <textarea class="modal-textarea" id="report-details" placeholder="Describe what happened..." maxlength="300"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-report-submit">Submit Report</button>
+      <button class="btn-secondary" id="btn-report-cancel">Cancel</button>
+    </div>
+  </div>
+
+<!-- ══════════ GAME OVER ══════════ -->
+<div id="screen-gameover">
+  <div class="gameover-box">
+    <div class="gameover-icon" id="gameover-icon">🏆</div>
+    <div class="gameover-title" id="gameover-title">YOU WIN!</div>
+    <div class="gameover-sub" id="gameover-sub"></div>
+    <div class="gameover-coins" id="gameover-coins"></div>
+    <button class="btn-primary" id="btn-play-again">🎮 Play Again</button>
+    <button class="btn-secondary" id="btn-gameover-menu">🏠 Main Menu</button>
+  </div>
+</div>
+
+<!-- ══════════ ANNOUNCEMENT TOAST ══════════ -->
+<div id="announcement-toast" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#6a0dad,#9b30e8);border:2px solid #cc88ff;border-radius:12px;padding:16px 28px;max-width:500px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.6);">
+  <div style="font-family:'Cinzel',serif;font-size:.7rem;color:#ffdd88;letter-spacing:2px;margin-bottom:6px;">📢 ANNOUNCEMENT</div>
+  <div id="announcement-text" style="font-size:.95rem;color:#fff;font-family:'Cinzel',serif;"></div>
+  <div id="announcement-author" style="font-size:.7rem;color:rgba(255,255,255,.6);margin-top:4px;font-family:'Cinzel',serif;"></div>
+</div>
+
+<!-- ══════════ GIFT MODAL ══════════ -->
+<div id="gift-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:400px;gap:16px;">
+    <div class="modal-title">🎁 Gift Item</div>
+    <div class="modal-sub">Sending: <strong id="gift-item-name"></strong></div>
+    <input type="hidden" id="gift-item-id"/>
+    <div class="modal-field">
+      <label class="modal-label">Recipient Username</label>
+      <input class="auth-input" id="gift-username" placeholder="Enter their username..." maxlength="20"/>
+    </div>
+    <div id="gift-cost-line" class="modal-sub" style="color:var(--gold)"></div>
+    <div id="gift-error" class="auth-error hidden"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-gift-send">Send Gift 🎁</button>
+      <button class="btn-secondary" id="btn-gift-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ INVITE TOAST ══════════ -->
+<div id="invite-toast" class="hidden">
+  <div class="invite-msg" id="invite-msg">⚔️ <strong id="invite-from"></strong> challenged you!</div>
+  <div class="invite-actions">
+    <button class="btn-small btn-accept" id="btn-accept-invite">Accept</button>
+    <button class="btn-small btn-decline" id="btn-decline-invite">Decline</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/js/game.js"></script>
+</body>
+</html>
