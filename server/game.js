@@ -51,7 +51,7 @@ function createPlayerState(id, username, x, z, cosmetics = {}) {
     spellCooldowns: { fireball: 0, iceshard: 0, thunder: 0, shield: 0 },
     alive: true,
     equippedSkin:  cosmetics.equippedSkin  || 'skin_default',
-    equippedWeapon: cosmetics.equippedWeapon || 'weapon_default',
+    equippedSpell: cosmetics.equippedSpell || 'spell_default',
     equippedTitle: cosmetics.equippedTitle || 'title_wizard'
   };
 }
@@ -217,7 +217,7 @@ function setupGameSockets(io) {
         const room = createRoom(waitingPlayer, socket);
         const playerList = Object.values(room.players).map(p => ({
           id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
-          equippedSkin: p.equippedSkin, equippedWeapon: p.equippedSpell, equippedTitle: p.equippedTitle
+          equippedSkin: p.equippedSkin, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
         }));
 
         io.to(room.roomId).emit('matchFound', {
@@ -280,7 +280,7 @@ function setupGameSockets(io) {
 
       const playerList = Object.values(state.players).map(p => ({
         id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
-        equippedSkin: p.equippedSkin, equippedWeapon: p.equippedSpell, equippedTitle: p.equippedTitle
+        equippedSkin: p.equippedSkin, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
       }));
 
       socket.emit('matchFound', { roomId, players: playerList });
@@ -376,7 +376,7 @@ function setupGameSockets(io) {
       const room = createRoom(fromSocket, socket);
       const playerList = Object.values(room.players).map(p => ({
         id: p.id, username: p.username, x: p.x, z: p.z, hp: p.hp,
-        equippedSkin: p.equippedSkin, equippedWeapon: p.equippedSpell, equippedTitle: p.equippedTitle
+        equippedSkin: p.equippedSkin, equippedSpell: p.equippedSpell, equippedTitle: p.equippedTitle
       }));
       io.to(room.roomId).emit('matchFound', { roomId: room.roomId, players: playerList });
       fromSocket.emit('yourId', fromSocket.id);
@@ -456,5 +456,5 @@ function setupGameSockets(io) {
   });
 }
 
-module.exports = { setupGameSockets, SPELLS, getOnlineUsers: () => onlineUsers, getIO: () => _io, getRooms: () => rooms };
+module.exports = { setupGameSockets, SPELLS, getOnlineUsers: () => onlineUsers, getIO: () => _io };
 let _io = null;

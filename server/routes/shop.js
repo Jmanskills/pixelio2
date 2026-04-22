@@ -49,13 +49,15 @@ router.post('/equip', authMiddleware, async (req, res) => {
     if (!user.inventory.includes(itemId)) return res.status(400).json({ error: 'Not owned.' });
 
     if (item.category === 'skin')  user.equippedSkin  = itemId;
-    if (item.category === 'weapon') user.equippedWeapon = itemId;
+    if (item.category === 'spell') user.equippedSpell = itemId;
     if (item.category === 'title') user.equippedTitle = itemId;
 
     await user.save();
     res.json({ profile: user.safeProfile() });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
 });
+
+module.exports = router;
 
 // POST /api/shop/gift  { toUsername, itemId }
 router.post('/gift', authMiddleware, async (req, res) => {
@@ -87,5 +89,3 @@ router.post('/gift', authMiddleware, async (req, res) => {
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error.' }); }
 });
-
-module.exports = router;

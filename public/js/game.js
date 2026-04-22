@@ -9,31 +9,12 @@ let pendingInviteFrom = null;
 let onlineFriends = new Set();
 
 const SKIN_COLORS = { skin_default:0x6a0dad, skin_crimson:0xcc1122, skin_ocean:0x0066cc, skin_forest:0x1a7a2a, skin_gold:0xd4a017, skin_shadow:0x1a1a2e, skin_rainbow:0xff44aa };
-const WEAPON_COLORS = { weapon_default:0x9b30e8, weapon_laser:0xff0088, weapon_freeze:0x88eeff, weapon_plasma:0x44ff44, weapon_rocket:0xff6600, weapon_thunder:0xffee00 };
+const SPELL_COLORS = { spell_default:null, spell_lava:0xff6600, spell_frost:0x88eeff, spell_venom:0x44ff44, spell_dark:0x220033, spell_solar:0xffdd00 };
 
 // ── Screens ───────────────────────────────────────────
 function showScreen(id) {
-  // Manage each screen explicitly
-  const screens = ['screen-splash','screen-mainmenu','screen-lobby','screen-game'];
-  screens.forEach(sid => {
-    const el = document.getElementById(sid);
-    if (!el) return;
-    if (sid === 'screen-game') {
-      // NEVER use display:none — kills WebGL. Use visibility instead.
-      const active = (sid === id);
-      el.style.visibility = active ? 'visible' : 'hidden';
-      el.style.pointerEvents = active ? 'all' : 'none';
-      el.style.zIndex = active ? '12' : '9';
-    } else {
-      const active = (sid === id);
-      el.style.display = active ? 'flex' : 'none';
-      el.style.zIndex = active ? '15' : '';
-    }
-  });
-  // Sync .active class for CSS that depends on it
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById(id);
-  if (target) target.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
+  document.getElementById(id).classList.add('active');
 }
 function switchTab(tab) {
   currentTab = tab;
@@ -166,7 +147,6 @@ function menuNav(tab) {
   if(tab==='profile')     loadProfilePanel();
   if(tab==='leaderboard') loadLeaderboard('wins');
   if(tab==='settings')    loadSettings();
-  if(tab==='locker')      renderLocker('skin');
 }
 
 // ── Preview Canvas ────────────────────────────────────
@@ -228,12 +208,12 @@ function renderShop() {
   const items=shopCatalog.filter(i=>i.category===currentShopTab);
   items.forEach(item=>{
     const owned=profile.inventory.includes(item.id);
-    const equipped=(item.category==='skin'&&profile.equippedSkin===item.id)||(item.category==='weapon'&&profile.equippedWeapon===item.id)||(item.category==='title'&&profile.equippedTitle===item.id);
+    const equipped=(item.category==='skin'&&profile.equippedSkin===item.id)||(item.category==='spell'&&profile.equippedSpell===item.id)||(item.category==='title'&&profile.equippedTitle===item.id);
     const card=document.createElement('div');
     card.className='shop-item'+(owned?' owned':'')+(equipped?' equipped':'');
     const preview=document.createElement('div'); preview.className='shop-preview';
     if(item.category==='skin'){preview.style.background=hexToCSS(item.color||0x6a0dad);preview.textContent='🧙';}
-    else if(item.category==='weapon'){preview.style.background=item.color?hexToCSS(item.color):'#9b30e8';preview.textContent='✨';}
+    else if(item.category==='spell'){preview.style.background=item.color?hexToCSS(item.color):'#9b30e8';preview.textContent='✨';}
     else if(item.category==='emote'){preview.style.background='#1a1030';preview.style.fontSize='1.8rem';preview.textContent=item.preview||'😄';}
     else{preview.style.background=item.preview||'#f0c040';preview.textContent='🏷️';}
     const name=document.createElement('div'); name.className='shop-item-name'; name.textContent=item.name;
@@ -355,22 +335,14 @@ let currentAdminTab='users';
 function adminTab(tab) {
   currentAdminTab=tab;
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
-  // Hide all admin panels
-  document.querySelectorAll('.admin-panel').forEach(p=>{
-    p.classList.remove('active');
-    p.style.display='none';
-  });
-  // Activate the right tab button
+  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
   const tabs=document.querySelectorAll('.admin-tab');
-  const tabNames=['users','reports','news','give','matches','announce'];
+  const tabNames=['users','reports','news','give'];
   const idx=tabNames.indexOf(tab); if(tabs[idx])tabs[idx].classList.add('active');
-  // Show the right panel
-  const panel=document.getElementById('admin-panel-'+tab);
-  if(panel){ panel.style.display='flex'; panel.classList.add('active'); }
-  if(tab==='reports') adminLoadReports();
-  if(tab==='news')    adminLoadNewsPanel();
-  if(tab==='give')    adminPopulateItemSelect();
-  if(tab==='matches') adminLoadMatches();
+  const panel=document.getElementById('admin-panel-'+tab); if(panel)panel.classList.add('active');
+  if(tab==='reports')adminLoadReports();
+  if(tab==='news')adminLoadNewsPanel();
+  if(tab==='give')adminPopulateItemSelect();
 }
 async function adminSearchUsers() {
   const search=document.getElementById('admin-user-search').value.trim();
@@ -541,7 +513,7 @@ function startPractice() {
   document.getElementById('lobby-msg').textContent='Setting up your training match...';
   showScreen('screen-lobby');
   setTimeout(()=>{
-    socket.emit('startPractice',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedWeapon:profile.equippedWeapon,equippedTitle:profile.equippedTitle}});
+    socket.emit('startPractice',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
   },300);
 }
 
@@ -587,7 +559,7 @@ function addSkybox(){const sky=new THREE.Mesh(new THREE.SphereGeometry(100,16,8)
 
 function createWizardMesh(skinItemId, spellItemId) {
   const robeColor  = SKIN_COLORS[skinItemId]  || 0x6a0dad;
-  const spellColor = WEAPON_COLORS[spellItemId] || robeColor;
+  const spellColor = SPELL_COLORS[spellItemId] || robeColor;
   const group = new THREE.Group();
   const robeMat = new THREE.MeshLambertMaterial({ color: robeColor });
 
@@ -629,17 +601,17 @@ function createWizardMesh(skinItemId, spellItemId) {
 function setShieldVisible(id,v){if(playerMeshes[id])playerMeshes[id].userData.shield.visible=v;}
 const BSC={fireball:0xff4400,iceshard:0x88ddff,thunder:0xffee00};
 function blendColors(c1,c2,t){const r1=(c1>>16)&0xff,g1=(c1>>8)&0xff,b1=c1&0xff,r2=(c2>>16)&0xff,g2=(c2>>8)&0xff,b2=c2&0xff;return(Math.round(r1+(r2-r1)*t)<<16)|(Math.round(g1+(g2-g1)*t)<<8)|Math.round(b1+(b2-b1)*t);}
-function createProjectileMesh(spellKey,spellItemId){let c=BSC[spellKey]||0xffffff;const ov=WEAPON_COLORS[spellItemId];if(ov)c=blendColors(c,ov,.5);const geo=spellKey==='iceshard'?new THREE.OctahedronGeometry(.2):new THREE.SphereGeometry(.25,8,8);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.add(new THREE.PointLight(c,1.5,4));return m;}
+function createProjectileMesh(spellKey,spellItemId){let c=BSC[spellKey]||0xffffff;const ov=SPELL_COLORS[spellItemId];if(ov)c=blendColors(c,ov,.5);const geo=spellKey==='iceshard'?new THREE.OctahedronGeometry(.2):new THREE.SphereGeometry(.25,8,8);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.add(new THREE.PointLight(c,1.5,4));return m;}
 
 function startGame(players){
-  // Hide gameover overlay if visible
-  document.getElementById('screen-gameover').classList.remove('gameover-active');
-  if(!renderer) initThree();
+  _gameOverShown=false;
+  hideGameOver();
+  if(!renderer)initThree();  // MUST init before using scene
   showScreen('screen-game');
   gameRunning=true;
   if(scene){Object.values(playerMeshes).forEach(m=>scene.remove(m));Object.values(projMeshes).forEach(m=>scene.remove(m));}
   playerMeshes={};projMeshes={};
-  players.forEach(p=>{const m=createWizardMesh(p.equippedSkin||'skin_default',p.equippedWeapon||'weapon_default');m.position.set(p.x,0,p.z);scene.add(m);playerMeshes[p.id]=m;});
+  players.forEach(p=>{const m=createWizardMesh(p.equippedSkin||'skin_default',p.equippedSpell||'spell_default');m.position.set(p.x,0,p.z);scene.add(m);playerMeshes[p.id]=m;});
   const me=players.find(p=>p.id===myId),opp=players.find(p=>p.id!==myId);
   const ti=id=>shopCatalog.find(i=>i.id===id);
   if(me){document.getElementById('hud-name-you').textContent=me.username;const t=ti(me.equippedTitle);document.getElementById('hud-title-you').textContent=t?t.name:'';}
@@ -653,7 +625,7 @@ function updateGameState(state){
   const si=new Set(state.projectiles.map(p=>p.id));
   Object.keys(projMeshes).forEach(id=>{if(!si.has(id)){scene.remove(projMeshes[id]);delete projMeshes[id];}});
   state.projectiles.forEach(proj=>{
-    if(!projMeshes[proj.id]){const ow=state.players[proj.ownerId];const sid=ow?(ow.equippedWeapon||'weapon_default'):'weapon_default';const m=createProjectileMesh(proj.spellKey,sid);scene.add(m);projMeshes[proj.id]=m;}
+    if(!projMeshes[proj.id]){const ow=state.players[proj.ownerId];const sid=ow?(ow.equippedSpell||'spell_default'):'spell_default';const m=createProjectileMesh(proj.spellKey,sid);scene.add(m);projMeshes[proj.id]=m;}
     projMeshes[proj.id].position.set(proj.x,proj.y,proj.z);
     if(proj.spellKey==='iceshard'){projMeshes[proj.id].rotation.x+=.3;projMeshes[proj.id].rotation.z+=.2;}
   });
@@ -701,24 +673,28 @@ function endGame(iWon, winnerName, disconnected, coinsEarned, quitterName) {
   gameRunning = false;
   removeInputListeners();
   hideReportModal(); hideEmoteWheel();
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
 
   const isDraw = iWon === null;
   document.getElementById('gameover-icon').textContent  = isDraw ? '🤝' : iWon ? '🏆' : '💀';
   document.getElementById('gameover-title').textContent = isDraw ? 'DRAW' : iWon ? 'YOU WIN!' : 'DEFEATED!';
   let sub;
-  if (isDraw)            sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
+  if (isDraw)          sub = quitterName ? `${quitterName} quit the match.` : 'The match ended in a draw.';
   else if (disconnected) sub = 'Opponent disconnected — Victory!';
-  else if (iWon)         sub = `You defeated ${winnerName}!`;
-  else                   sub = `${winnerName} wins this round.`;
+  else if (iWon)       sub = `You defeated ${winnerName}!`;
+  else                 sub = `${winnerName} wins this round.`;
   document.getElementById('gameover-sub').textContent = sub;
   document.getElementById('gameover-coins').textContent = coinsEarned > 0 ? `+🪙 ${coinsEarned} coins earned!` : '';
 
-  // Show overlay ON TOP of game canvas — do NOT call showScreen (that would hide canvas and kill WebGL)
-  document.getElementById('screen-gameover').classList.add('gameover-active');
+  // Use showScreen — this removes 'active' from screen-game and adds it to screen-gameover
+  showScreen('screen-gameover');
 }
 
+// Legacy stubs kept for socket handlers that call these
+function showGameOver() { /* handled in endGame */ }
 function hideGameOver() {
-  document.getElementById('screen-gameover').classList.remove('gameover-active');
+  const go = document.getElementById('screen-gameover');
+  go.classList.remove('active');
 }
 
 function quitMatch(){if(!socket||!gameRunning)return;if(!confirm('Quit? Match ends as draw.'))return;socket.emit('quitMatch');}
@@ -744,7 +720,7 @@ function clearEmotes(){activeEmoteParticles.forEach(p=>scene&&scene.remove(p));a
 function connectSocket(){
   if(socket&&socket.connected)return;
   socket=io();
-  socket.on('connect',()=>{socket.emit('registerPresence',{username:profile.username,cosmetics:{equippedSkin:profile.equippedSkin,equippedWeapon:profile.equippedWeapon,equippedTitle:profile.equippedTitle}});});
+  socket.on('connect',()=>{socket.emit('registerPresence',{username:profile.username,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});});
   socket.on('yourId',id=>{myId=id;});
   socket.on('matchFound',({players})=>{startGame(players);});
   socket.on('gameState',state=>{if(gameRunning)updateGameState(state);});
@@ -764,8 +740,6 @@ function connectSocket(){
   socket.on('inviteDeclined',({byUsername})=>{showReportConfirmation(`${byUsername} declined your invite.`);});
   socket.on('inviteError',({message})=>{showReportConfirmation(message);});
   socket.on('waiting',({message})=>{document.getElementById('lobby-msg').textContent=message;});
-  socket.on('announcement',({message,author})=>{ showAnnouncementToast(message, author); });
-  socket.on('muted',({minutes})=>{ showReportConfirmation(`🔇 You have been muted for ${minutes} minute(s).`); });
 }
 function joinQueue(){
   if(!socket)connectSocket();
@@ -773,7 +747,7 @@ function joinQueue(){
   const lt=document.getElementById('lobby-title');if(lt)lt.textContent='⚔️ Finding Opponent...';
   document.getElementById('lobby-msg').textContent='Searching for an opponent...';
   showScreen('screen-lobby');
-  socket.emit('joinQueue',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedWeapon:profile.equippedWeapon,equippedTitle:profile.equippedTitle}});
+  socket.emit('joinQueue',{username:profile.username,token:authToken,cosmetics:{equippedSkin:profile.equippedSkin,equippedSpell:profile.equippedSpell,equippedTitle:profile.equippedTitle}});
 }
 
 // ── API Helper ────────────────────────────────────────
@@ -1020,104 +994,6 @@ function saveSettings() {
 })();
 
 
-
-// ═══════════════════════════════════════════════════
-//  LOCKER
-// ═══════════════════════════════════════════════════
-let currentLockerTab = 'skin';
-
-function lockerTab(tab, btn) {
-  currentLockerTab = tab;
-  document.querySelectorAll('.locker-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderLocker(tab);
-}
-
-function renderLocker(tab) {
-  currentLockerTab = tab || currentLockerTab;
-  const grid = document.getElementById('locker-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-
-  const owned = shopCatalog.filter(i => i.category === currentLockerTab && profile.inventory.includes(i.id));
-
-  if (!owned.length) {
-    grid.innerHTML = '<div class="locker-empty">You don't own any ' + currentLockerTab + 's yet.<br/>Visit the Shop to get some!</div>';
-    return;
-  }
-
-  owned.forEach(item => {
-    const isEquipped =
-      (item.category === 'skin'   && profile.equippedSkin   === item.id) ||
-      (item.category === 'weapon' && profile.equippedWeapon === item.id) ||
-      (item.category === 'title'  && profile.equippedTitle  === item.id) ||
-      (item.category === 'emote'  && false); // emotes don't equip
-
-    const card = document.createElement('div');
-    card.className = 'locker-card' + (isEquipped ? ' locker-equipped' : '');
-
-    // Preview
-    const prev = document.createElement('div');
-    prev.className = 'locker-preview';
-    if (item.category === 'skin') {
-      const c = SKIN_COLORS[item.id] || 0x6a0dad;
-      prev.style.background = '#' + c.toString(16).padStart(6,'0');
-      prev.textContent = '🧙';
-    } else if (item.category === 'weapon') {
-      prev.textContent = item.preview || '🔫';
-      prev.style.background = '#1a0a2e';
-      prev.style.fontSize = '1.8rem';
-    } else if (item.category === 'emote') {
-      prev.textContent = item.preview || '😄';
-      prev.style.background = '#1a1030';
-      prev.style.fontSize = '1.8rem';
-    } else {
-      prev.style.background = item.preview || '#f0c040';
-      prev.textContent = '🏷️';
-    }
-
-    const name = document.createElement('div');
-    name.className = 'locker-item-name';
-    name.textContent = item.name;
-
-    const statusRow = document.createElement('div');
-    statusRow.className = 'locker-status-row';
-
-    if (isEquipped) {
-      const badge = document.createElement('span');
-      badge.className = 'locker-badge equipped';
-      badge.textContent = '✓ Equipped';
-      statusRow.appendChild(badge);
-    } else if (item.category !== 'emote') {
-      const btn = document.createElement('button');
-      btn.className = 'locker-equip-btn';
-      btn.textContent = 'Equip';
-      btn.onclick = () => equipItemFromLocker(item.id);
-      statusRow.appendChild(btn);
-    } else {
-      const badge = document.createElement('span');
-      badge.className = 'locker-badge owned';
-      badge.textContent = '✓ Owned';
-      statusRow.appendChild(badge);
-    }
-
-    card.appendChild(prev);
-    card.appendChild(name);
-    card.appendChild(statusRow);
-    grid.appendChild(card);
-  });
-}
-
-async function equipItemFromLocker(itemId) {
-  const res = await apiFetch('/api/shop/equip', 'POST', { itemId });
-  if (!res) return;
-  profile = res.profile;
-  updateMenuUI();
-  renderLocker(currentLockerTab);
-  renderPreviewCanvas();
-  showReportConfirmation('Equipped!');
-}
-
 // ═══════════════════════════════════════════════════
 //  GIFTING
 // ═══════════════════════════════════════════════════
@@ -1144,100 +1020,15 @@ async function sendGift() {
 
   const btn = document.getElementById('btn-gift-send');
   btn.disabled = true; btn.textContent = 'Sending...';
+  const res = await apiFetch('/api/shop/gift', 'POST', { toUsername, itemId });
+  btn.disabled = false; btn.textContent = 'Send Gift 🎁';
 
-  try {
-    const opts = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken }
-    };
-    opts.body = JSON.stringify({ toUsername, itemId });
-    const res = await fetch('/api/shop/gift', opts);
-    const data = await res.json();
-    btn.disabled = false; btn.textContent = 'Send Gift 🎁';
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Could not send gift.';
-      errEl.classList.remove('hidden');
-      return;
-    }
-    profile = data.profile;
-    updateMenuUI();
-    renderShop();
-    renderLocker(currentLockerTab);
-    closeGiftModal();
-    showReportConfirmation(data.message || '🎁 Gift sent!');
-  } catch(e) {
-    btn.disabled = false; btn.textContent = 'Send Gift 🎁';
-    errEl.textContent = 'Network error. Try again.';
-    errEl.classList.remove('hidden');
-  }
-}
-
-
-// ── New admin functions ───────────────────────────────
-async function adminTempBan() {
-  const username = document.getElementById('admin-tempban-username').value.trim();
-  const hours    = document.getElementById('admin-tempban-hours').value;
-  const reason   = document.getElementById('admin-tempban-reason').value.trim();
-  if(!username||!hours){showAdminMsg('Username and hours required.');return;}
-  const res = await apiFetch('/api/admin/tempban','POST',{username,hours:Number(hours),reason});
-  showAdminMsg(res?res.message:'Error.');
-}
-
-async function adminMutePlayer() {
-  const username = document.getElementById('admin-mute-username').value.trim();
-  const minutes  = document.getElementById('admin-mute-minutes').value;
-  if(!username){showAdminMsg('Username required.');return;}
-  const res = await apiFetch('/api/admin/mute','POST',{username,minutes:Number(minutes)||10});
-  showAdminMsg(res?res.message:'Error.');
-}
-
-async function adminUnmutePlayer() {
-  const username = document.getElementById('admin-mute-username').value.trim();
-  if(!username){showAdminMsg('Username required.');return;}
-  const res = await apiFetch('/api/admin/unmute','POST',{username});
-  showAdminMsg(res?res.message:'Error.');
-}
-
-async function adminSendAnnouncement() {
-  const message = document.getElementById('admin-announce-text').value.trim();
-  if(!message){showAdminMsg('Message required.');return;}
-  const btn = document.querySelector('[onclick="adminSendAnnouncement()"]');
-  if(btn){btn.disabled=true;btn.textContent='Sending...';}
-  const res = await apiFetch('/api/admin/announce','POST',{message});
-  if(btn){btn.disabled=false;btn.textContent='📢 Send to All Players';}
-  const msgEl = document.getElementById('admin-announce-msg');
-  if(msgEl&&res){msgEl.textContent=res.message;msgEl.className='friend-msg success';msgEl.classList.remove('hidden');setTimeout(()=>msgEl.classList.add('hidden'),4000);}
-  if(res) document.getElementById('admin-announce-text').value='';
-}
-
-async function adminLoadMatches() {
-  const list = document.getElementById('admin-matches-list');
-  list.innerHTML = '<div class="admin-empty">Loading...</div>';
-  const res = await apiFetch('/api/admin/activematches','GET');
-  if(!res){list.innerHTML='<div class="admin-empty">Error loading matches.</div>';return;}
-  if(!res.matches.length){list.innerHTML='<div class="admin-empty">No active matches right now.</div>';return;}
-  list.innerHTML = res.matches.map(m=>`
-    <div class="admin-report-row" style="margin-bottom:8px">
-      <div class="admin-report-header">
-        <span>${m.isPractice?'🤖 Practice':'⚔️ Live Match'}</span>
-        <span class="tag">${m.winner?'Finished':'In Progress'}</span>
-      </div>
-      <div style="margin-top:6px;font-size:.8rem;color:var(--gray)">
-        ${m.players.map(p=>`<span style="margin-right:12px">${escHtml(p.username)}: ${p.hp}HP ${p.alive?'✅':'💀'}</span>`).join('')}
-      </div>
-    </div>`).join('');
-}
-
-function showAnnouncementToast(message, author) {
-  const el = document.getElementById('announcement-toast');
-  document.getElementById('announcement-text').textContent = message;
-  document.getElementById('announcement-author').textContent = author ? `— ${author}` : '';
-  el.style.display = 'block';
-  el.style.animation = 'fadeInDown .4s ease';
-  setTimeout(() => {
-    el.style.animation = 'fadeOut .5s ease forwards';
-    setTimeout(() => { el.style.display = 'none'; }, 500);
-  }, 5000);
+  if (!res) return; // apiFetch shows error
+  profile = res.profile;
+  updateMenuUI();
+  renderShop();
+  closeGiftModal();
+  showReportConfirmation(res.message);
 }
 
 // ══════════════════════════════════════════════════════
