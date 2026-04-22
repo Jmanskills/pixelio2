@@ -9,7 +9,7 @@
 <body>
 
 <!-- ══════════ SPLASH / LOGIN ══════════ -->
-<div id="screen-splash" class="screen active">
+<div id="screen-splash" style="display:flex;z-index:15;">
   <div class="splash-bg"></div>
   <div class="splash-particles" id="particles"></div>
 
@@ -93,6 +93,9 @@
       <button class="menu-nav-btn" id="nav-shop" onclick="menuNav('shop')">
         <span class="nav-icon">🛍️</span><span class="nav-label">Shop</span>
       </button>
+      <button class="menu-nav-btn" id="nav-locker" onclick="menuNav('locker')">
+        <span class="nav-icon">🔒</span><span class="nav-label">Locker</span>
+      </button>
       <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
         <span class="nav-icon">📰</span><span class="nav-label">News</span>
       </button>
@@ -168,7 +171,7 @@
       <div class="shop-header">
         <div class="shop-tabs">
           <button class="shop-tab active" onclick="shopTab('skin')">🎨 Skins</button>
-          <button class="shop-tab" onclick="shopTab('spell')">🔫 Weapon FX</button>
+          <button class="shop-tab" onclick="shopTab('weapon')">🔫 Weapons</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
           <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
@@ -215,6 +218,20 @@
           <div id="profile-lookup-result" class="profile-lookup-result hidden"></div>
         </div>
       </div>
+    </div>
+
+    <!-- LOCKER PANEL -->
+    <div class="menu-panel" id="panel-locker">
+      <div class="locker-header">
+        <div class="locker-title">🔒 Your Locker</div>
+        <div class="locker-tabs">
+          <button class="locker-tab active" onclick="lockerTab('skin',this)">🎨 Skins</button>
+          <button class="locker-tab" onclick="lockerTab('weapon',this)">🔫 Weapons</button>
+          <button class="locker-tab" onclick="lockerTab('title',this)">🏷️ Titles</button>
+          <button class="locker-tab" onclick="lockerTab('emote',this)">😄 Emotes</button>
+        </div>
+      </div>
+      <div id="locker-grid" class="locker-grid"></div>
     </div>
 
     <!-- NEWS PANEL -->
@@ -314,6 +331,8 @@
         <button class="admin-tab" onclick="adminTab('reports')">🚩 Reports</button>
         <button class="admin-tab" onclick="adminTab('news')">📰 News</button>
         <button class="admin-tab" onclick="adminTab('give')">🎁 Give Items</button>
+          <button class="admin-tab" onclick="adminTab('matches')">⚔️ Matches</button>
+          <button class="admin-tab" onclick="adminTab('announce')">📢 Tools</button>
       </div>
 
       <!-- USERS TAB -->
@@ -371,6 +390,39 @@
           <input class="auth-input" id="admin-removeskin-itemid" placeholder="Item ID (e.g. skin_crimson, robe_gold...)" />
           <button class="btn-secondary" onclick="adminRemoveSkin()" style="align-self:flex-start;border-color:var(--red);color:#ff8888">🗑️ Remove Item</button>
         </div>
+        <!-- MATCHES PANEL -->
+        <div class="admin-panel hidden" id="admin-panel-matches">
+          <button class="btn-small" onclick="adminLoadMatches()" style="margin-bottom:12px">🔄 Refresh</button>
+          <div id="admin-matches-list" class="admin-empty">Click refresh to load active matches.</div>
+        </div>
+
+        <!-- ANNOUNCE PANEL -->
+        <div class="admin-panel hidden" id="admin-panel-announce">
+          <div class="admin-form">
+            <textarea class="auth-input" id="admin-announce-text" placeholder="Type your announcement..." rows="3" style="resize:vertical;min-height:80px;font-family:inherit"></textarea>
+            <button class="btn-primary" onclick="adminSendAnnouncement()">📢 Send to All Players</button>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+            <div class="admin-section-title">⏱️ Temp Ban</div>
+            <div class="admin-form">
+              <input class="auth-input" id="admin-tempban-username" placeholder="Username..."/>
+              <input class="auth-input" id="admin-tempban-hours" type="number" placeholder="Hours..." min="1" style="width:90px"/>
+              <input class="auth-input" id="admin-tempban-reason" placeholder="Reason (optional)..."/>
+              <button class="btn-secondary" onclick="adminTempBan()" style="border-color:var(--red);color:#ff8888">⏱️ Temp Ban</button>
+            </div>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+            <div class="admin-section-title">🔇 Mute Player</div>
+            <div class="admin-form">
+              <input class="auth-input" id="admin-mute-username" placeholder="Username..."/>
+              <input class="auth-input" id="admin-mute-minutes" type="number" placeholder="Minutes..." min="1" style="width:90px"/>
+              <button class="btn-secondary" onclick="adminMutePlayer()" style="border-color:#cc8800;color:#ffaa00">🔇 Mute</button>
+              <button class="btn-secondary" onclick="adminUnmutePlayer()" style="border-color:#22aa44;color:#44ff66">🔊 Unmute</button>
+            </div>
+          </div>
+          <div id="admin-announce-msg" class="friend-msg hidden" style="margin-top:10px"></div>
+        </div>
+
         <div id="admin-give-msg" class="friend-msg hidden" style="margin-top:12px"></div>
       </div>
     </div>
@@ -390,7 +442,7 @@
 </div>
 
 <!-- ══════════ GAME ══════════ -->
-<div id="screen-game" class="screen">
+<div id="screen-game" style="visibility:hidden;pointer-events:none;z-index:9;">
   <canvas id="game-canvas"></canvas>
   <div id="hud">
     <div class="hud-player hud-left">
@@ -475,7 +527,7 @@
   </div>
 
 <!-- ══════════ GAME OVER ══════════ -->
-<div id="screen-gameover" class="screen">
+<div id="screen-gameover">
   <div class="gameover-box">
     <div class="gameover-icon" id="gameover-icon">🏆</div>
     <div class="gameover-title" id="gameover-title">YOU WIN!</div>
@@ -484,6 +536,13 @@
     <button class="btn-primary" id="btn-play-again">🎮 Play Again</button>
     <button class="btn-secondary" id="btn-gameover-menu">🏠 Main Menu</button>
   </div>
+</div>
+
+<!-- ══════════ ANNOUNCEMENT TOAST ══════════ -->
+<div id="announcement-toast" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#6a0dad,#9b30e8);border:2px solid #cc88ff;border-radius:12px;padding:16px 28px;max-width:500px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.6);">
+  <div style="font-family:'Cinzel',serif;font-size:.7rem;color:#ffdd88;letter-spacing:2px;margin-bottom:6px;">📢 ANNOUNCEMENT</div>
+  <div id="announcement-text" style="font-size:.95rem;color:#fff;font-family:'Cinzel',serif;"></div>
+  <div id="announcement-author" style="font-size:.7rem;color:rgba(255,255,255,.6);margin-top:4px;font-family:'Cinzel',serif;"></div>
 </div>
 
 <!-- ══════════ GIFT MODAL ══════════ -->

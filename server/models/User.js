@@ -12,11 +12,11 @@ const userSchema = new mongoose.Schema({
   coins:  { type: Number, default: 100 },
 
   // Owned item IDs
-  inventory: { type: [String], default: ['skin_default', 'spell_default', 'title_wizard', 'title_apprentice', 'emote_wave', 'emote_gg'] },
+  inventory: { type: [String], default: ['skin_default', 'weapon_default', 'title_player', 'title_rookie', 'emote_wave', 'emote_gg'] },
 
   // Equipped
   equippedSkin:  { type: String, default: 'skin_default' },
-  equippedSpell: { type: String, default: 'spell_default' },
+  equippedWeapon: { type: String, default: 'weapon_default' },
   equippedTitle: { type: String, default: 'title_wizard' },
 
   // Friends list & incoming requests
@@ -27,7 +27,10 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, default: '', maxlength: 150 },
   isAdmin: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false },
-  banReason: { type: String, default: '' },
+  banReason:      { type: String, default: '' },
+  tempBanExpires:  { type: Date, default: null },
+  isMuted:         { type: Boolean, default: false },
+  muteExpires:     { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -49,7 +52,7 @@ userSchema.methods.safeProfile = function () {
     coins: this.coins,
     inventory: this.inventory,
     equippedSkin: this.equippedSkin,
-    equippedSpell: this.equippedSpell,
+    equippedWeapon: this.equippedWeapon,
     equippedTitle: this.equippedTitle,
     friends: this.friends,
     friendRequests: this.friendRequests,
