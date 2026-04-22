@@ -1,6 +1,6 @@
-# 🧙 Pixelio
+# 🧙 Wizard Duel
 
-A 1v1 online multiplayer fortnite for school dueling game. Players battle in a fantasy outdoor arena using four unique spells.
+A 1v1 online multiplayer wizard dueling game. Players battle in a fantasy outdoor arena using four unique spells.
 
 ## Spells
 | Key | Spell | Damage | Cooldown | Effect |
