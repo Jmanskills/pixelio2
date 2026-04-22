@@ -94,7 +94,7 @@
         <span class="nav-icon">🛍️</span><span class="nav-label">Shop</span>
       </button>
       <button class="menu-nav-btn" id="nav-locker" onclick="menuNav('locker')">
-        <span class="nav-icon">🔒</span><span class="nav-label">Locker</span>
+        <span class="nav-icon">👕</span><span class="nav-label">Locker</span>
       </button>
       <button class="menu-nav-btn" id="nav-news" onclick="menuNav('news')">
         <span class="nav-icon">📰</span><span class="nav-label">News</span>
@@ -171,7 +171,7 @@
       <div class="shop-header">
         <div class="shop-tabs">
           <button class="shop-tab active" onclick="shopTab('skin')">🎨 Skins</button>
-          <button class="shop-tab" onclick="shopTab('weapon')">🔫 Weapons</button>
+          <button class="shop-tab" onclick="shopTab('spell')">✨ Weapon FX</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
           <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
@@ -221,16 +221,32 @@
     </div>
 
     <!-- LOCKER PANEL -->
+    <!-- LOCKER PANEL -->
     <div class="menu-panel" id="panel-locker">
-      <div class="locker-header">
-        <div class="locker-title">🔒 Your Locker</div>
-        <div class="locker-tabs">
-          <button class="locker-tab active" onclick="lockerTab('skin',this)">🎨 Skins</button>
-          <button class="locker-tab" onclick="lockerTab('weapon',this)">🔫 Weapons</button>
-          <button class="locker-tab" onclick="lockerTab('title',this)">🏷️ Titles</button>
-          <button class="locker-tab" onclick="lockerTab('emote',this)">😄 Emotes</button>
+      <div class="locker-hero">
+        <div class="locker-hero-left">
+          <div class="locker-title-big">🔒 Your Locker</div>
+          <div class="locker-subtitle">All your owned items — click to equip</div>
+        </div>
+        <div class="locker-equipped-preview">
+          <canvas id="locker-preview-canvas" width="100" height="130"></canvas>
         </div>
       </div>
+      <div class="locker-tab-bar">
+        <button class="locker-tab active" id="ltab-skin"  onclick="lockerTab('skin',this)">
+          <span class="ltab-icon">🎨</span><span class="ltab-label">Skins</span>
+        </button>
+        <button class="locker-tab" id="ltab-spell" onclick="lockerTab('spell',this)">
+          <span class="ltab-icon">✨</span><span class="ltab-label">FX</span>
+        </button>
+        <button class="locker-tab" id="ltab-title" onclick="lockerTab('title',this)">
+          <span class="ltab-icon">🏷️</span><span class="ltab-label">Titles</span>
+        </button>
+        <button class="locker-tab" id="ltab-emote" onclick="lockerTab('emote',this)">
+          <span class="ltab-icon">😄</span><span class="ltab-label">Emotes</span>
+        </button>
+      </div>
+      <div id="locker-count" class="locker-count"></div>
       <div id="locker-grid" class="locker-grid"></div>
     </div>
 

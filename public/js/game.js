@@ -166,7 +166,14 @@ function menuNav(tab) {
   if(tab==='profile')     loadProfilePanel();
   if(tab==='leaderboard') loadLeaderboard('wins');
   if(tab==='settings')    loadSettings();
-  if(tab==='locker')      renderLocker('skin');
+  if(tab==='locker') {
+    // Activate first tab button
+    document.querySelectorAll('.locker-tab').forEach(t => t.classList.remove('active'));
+    const firstTab = document.getElementById('ltab-skin');
+    if (firstTab) firstTab.classList.add('active');
+    currentLockerTab = 'skin';
+    renderLocker('skin');
+  }
 }
 
 // ── Preview Canvas ────────────────────────────────────
@@ -1041,30 +1048,38 @@ function lockerTab(tab, btn) {
   renderLocker(tab);
 }
 
+const LOCKER_TAB_LABELS = { skin: 'skins', spell: 'weapon FX', title: 'titles', emote: 'emotes' };
+
 function renderLocker(tab) {
   currentLockerTab = tab || currentLockerTab;
   const grid = document.getElementById('locker-grid');
   if (!grid) return;
-  grid.innerHTML = '';
 
+  // Update count display
+  const countEl = document.getElementById('locker-count');
   const owned = shopCatalog.filter(i => i.category === currentLockerTab && profile.inventory.includes(i.id));
+  const total = shopCatalog.filter(i => i.category === currentLockerTab).length;
+  if (countEl) countEl.textContent = `${owned.length} / ${total} ${LOCKER_TAB_LABELS[currentLockerTab] || currentLockerTab+'s'} owned`;
 
+  // Update mini preview
+  const lpc = document.getElementById('locker-preview-canvas');
+  if (lpc) renderPreviewCanvas(lpc);
+
+  grid.innerHTML = '';
   if (!owned.length) {
-    grid.innerHTML = `<div class="locker-empty">You don't own any ${currentLockerTab}s yet.<br/>Visit the Shop to get some!</div>`;
+    grid.innerHTML = `<div class="locker-empty">You don't own any ${LOCKER_TAB_LABELS[currentLockerTab] || currentLockerTab+'s'} yet.<br/>Visit the <strong>Shop</strong> to get some!</div>`;
     return;
   }
 
   owned.forEach(item => {
     const isEquipped =
-      (item.category === 'skin'   && profile.equippedSkin   === item.id) ||
+      (item.category === 'skin'  && profile.equippedSkin  === item.id) ||
       (item.category === 'spell' && profile.equippedSpell === item.id) ||
-      (item.category === 'title'  && profile.equippedTitle  === item.id) ||
-      (item.category === 'emote'  && false); // emotes don't equip
+      (item.category === 'title' && profile.equippedTitle === item.id);
 
     const card = document.createElement('div');
     card.className = 'locker-card' + (isEquipped ? ' locker-equipped' : '');
 
-    // Preview
     const prev = document.createElement('div');
     prev.className = 'locker-preview';
     if (item.category === 'skin') {
@@ -1072,15 +1087,17 @@ function renderLocker(tab) {
       prev.style.background = '#' + c.toString(16).padStart(6,'0');
       prev.textContent = '🧙';
     } else if (item.category === 'spell') {
-      prev.textContent = item.preview || '🔫';
-      prev.style.background = '#1a0a2e';
+      const col = item.color ? '#' + item.color.toString(16).padStart(6,'0') : '#1a0a2e';
+      prev.style.background = `radial-gradient(circle at 50% 50%, ${col}88, #0a0518)`;
+      prev.textContent = '✨';
       prev.style.fontSize = '1.8rem';
     } else if (item.category === 'emote') {
       prev.textContent = item.preview || '😄';
       prev.style.background = '#1a1030';
-      prev.style.fontSize = '1.8rem';
+      prev.style.fontSize = '2rem';
     } else {
-      prev.style.background = item.preview || '#f0c040';
+      prev.style.background = '#1a1408';
+      prev.style.border = '1px solid ' + (item.preview || '#f0c040');
       prev.textContent = '🏷️';
     }
 
@@ -1123,7 +1140,7 @@ async function equipItemFromLocker(itemId) {
   updateMenuUI();
   renderLocker(currentLockerTab);
   renderPreviewCanvas();
-  showReportConfirmation('Equipped!');
+  showReportConfirmation('✅ Equipped!');
 }
 
 // ═══════════════════════════════════════════════════
