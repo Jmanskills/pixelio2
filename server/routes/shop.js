@@ -28,7 +28,7 @@ router.post('/buy', authMiddleware, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
     if (user.inventory.includes(itemId)) return res.status(400).json({ error: 'Already owned.' });
-    if (user.coins < item.price) return res.status(400).json({ error: 'Not enough coins.' });
+    if (user.coins < item.price) return res.status(400).json({ error: 'Not enough Pixels.' });
 
     user.coins -= item.price;
     user.inventory.push(itemId);
@@ -48,7 +48,7 @@ router.post('/equip', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found.' });
     if (!user.inventory.includes(itemId)) return res.status(400).json({ error: 'Not owned.' });
 
-    if (item.category === 'skin')  user.equippedSkin  = itemId;
+    if (item.category === 'skin')   user.equippedSkin   = itemId;
     if (item.category === 'weapon') user.equippedWeapon = itemId;
     if (item.category === 'title') user.equippedTitle = itemId;
 
@@ -74,7 +74,7 @@ router.post('/gift', authMiddleware, async (req, res) => {
     if (!receiver) return res.status(404).json({ error: `Player "${toUsername}" not found.` });
     if (sender.username === receiver.username) return res.status(400).json({ error: 'Cannot gift yourself.' });
     if (receiver.inventory.includes(itemId)) return res.status(400).json({ error: `${receiver.username} already owns this item.` });
-    if (sender.coins < item.price) return res.status(400).json({ error: `Not enough coins. Need 🪙${item.price}.` });
+    if (sender.coins < item.price) return res.status(400).json({ error: `Not enough Pixels. Need 🪙${item.price}.` });
 
     sender.coins -= item.price;
     receiver.inventory.push(itemId);
