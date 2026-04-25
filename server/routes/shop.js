@@ -48,7 +48,7 @@ router.post('/equip', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found.' });
     if (!user.inventory.includes(itemId)) return res.status(400).json({ error: 'Not owned.' });
 
-    if (item.category === 'skin')   user.equippedSkin   = itemId;
+    if (item.category === 'skin')  user.equippedSkin  = itemId;
     if (item.category === 'weapon') user.equippedWeapon = itemId;
     if (item.category === 'title') user.equippedTitle = itemId;
 
