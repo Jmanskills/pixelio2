@@ -53,7 +53,7 @@
     <div id="auth-error" class="auth-error hidden"></div>
     <input class="auth-input" id="auth-username" type="text" placeholder="Username" maxlength="20" autocomplete="off"/>
     <input class="auth-input" id="auth-password" type="password" placeholder="Password" autocomplete="off"/>
-    <button class="btn-primary wide" id="btn-auth-submit">Enter the Arena</button>
+    <button class="btn-primary wide" id="btn-auth-submit">Play Now!</button>
     <button class="auth-modal-close" id="btn-auth-close">✕ Cancel</button>
   </div>
 </div>
@@ -69,7 +69,7 @@
     <div class="menu-topbar-right">
       <div class="menu-coins" id="menu-coins">🪙 0</div>
       <div class="menu-avatar" id="menu-avatar">
-        <div class="avatar-robe" id="avatar-robe"></div>
+        <div class="avatar-skin" id="avatar-skin"></div>
       </div>
       <div class="menu-username-wrap">
         <div class="menu-title-badge" id="menu-title-badge">Player</div>
@@ -115,7 +115,7 @@
 
     <!-- PLAY PANEL -->
     <div class="menu-panel active" id="panel-play">
-      <div class="play-wizard-preview">
+      <div class="play-preview">
         <canvas id="preview-canvas" width="200" height="260"></canvas>
       </div>
       <div class="play-actions">
@@ -171,7 +171,7 @@
       <div class="shop-header">
         <div class="shop-tabs">
           <button class="shop-tab active" onclick="shopTab('skin')">🎨 Skins</button>
-          <button class="shop-tab" onclick="shopTab('spell')">✨ Weapon FX</button>
+          <button class="shop-tab" onclick="shopTab('weapon')">🔫 Weapons</button>
           <button class="shop-tab" onclick="shopTab('title')">🏷️ Titles</button>
           <button class="shop-tab" onclick="shopTab('emote')">😄 Emotes</button>
         </div>
@@ -236,8 +236,8 @@
         <button class="locker-tab active" id="ltab-skin"  onclick="lockerTab('skin',this)">
           <span class="ltab-icon">🎨</span><span class="ltab-label">Skins</span>
         </button>
-        <button class="locker-tab" id="ltab-spell" onclick="lockerTab('spell',this)">
-          <span class="ltab-icon">✨</span><span class="ltab-label">FX</span>
+        <button class="locker-tab" id="ltab-weapon" onclick="lockerTab('weapon',this)">
+          <span class="ltab-icon">🔫</span><span class="ltab-label">Weapons</span>
         </button>
         <button class="locker-tab" id="ltab-title" onclick="lockerTab('title',this)">
           <span class="ltab-icon">🏷️</span><span class="ltab-label">Titles</span>
@@ -449,7 +449,7 @@
 <!-- ══════════ LOBBY ══════════ -->
 <div id="screen-lobby" class="screen">
   <div class="lobby-box">
-    <div class="lobby-title" id="lobby-title">🎮 Finding Opponent...</div>
+    <div class="lobby-title" id="lobby-title">🎮 Finding Match...</div>
     <div class="lobby-spinner"></div>
     <div class="lobby-msg" id="lobby-msg">Joining the queue...</div>
     <div class="lobby-player">Playing as: <span id="lobby-username"></span></div>
@@ -477,15 +477,15 @@
   </div>
   <div id="spell-bar">
     <div class="spell-slot" id="spell-1">
-      <div class="spell-icon">🚀</div><div class="spell-name">Rocket</div>
+      <div class="spell-icon">🚀</div><div class="spell-name">Launcher</div>
       <div class="spell-key">Q</div><div class="spell-cooldown-overlay" id="cd-fireball"></div>
     </div>
     <div class="spell-slot" id="spell-2">
-      <div class="spell-icon">🔵</div><div class="spell-name">Blaster</div>
+      <div class="spell-icon">🔫</div><div class="spell-name">Rifle</div>
       <div class="spell-key">E</div><div class="spell-cooldown-overlay" id="cd-iceshard"></div>
     </div>
     <div class="spell-slot" id="spell-3">
-      <div class="spell-icon">⚡</div><div class="spell-name">Zapper</div>
+      <div class="spell-icon">⚡</div><div class="spell-name">Pistol</div>
       <div class="spell-key">R</div><div class="spell-cooldown-overlay" id="cd-thunder"></div>
     </div>
     <div class="spell-slot" id="spell-4">
@@ -495,7 +495,7 @@
   </div>
   <div id="hit-flash"></div>
   <div id="stun-indicator" class="hidden">⚡ STUNNED!</div>
-  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q: Rocket | E: Blaster | R: Zapper | F: Shield &nbsp;|&nbsp; Tab: Emotes</div>
+  <div id="controls-hint">WASD: Move &nbsp;|&nbsp; Mouse: Aim (click to lock) &nbsp;|&nbsp; Q: Launcher &nbsp;|&nbsp; E: Rifle &nbsp;|&nbsp; R: Pistol &nbsp;|&nbsp; F: Shield &nbsp;|&nbsp; Tab: Emotes</div>
 
   <!-- Emote button & wheel -->
   <div id="emote-btn-wrap">
